@@ -1,4 +1,6 @@
 using FitnessApp.Data;
+using FitnessApp.Service;
+using FitnessApp.Service.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -14,6 +16,7 @@ var connectionString = builder.Configuration
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
 
+builder.Services.AddScoped<ITrainerService, TrainerService>();
 ///////////////////////////////////////////////////////////////////////////////////
 
 var app = builder.Build();
