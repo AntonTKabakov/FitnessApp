@@ -1,0 +1,59 @@
+@model IEnumerable<FitnessApp.Models.Checkin>
+
+@{
+    ViewData["Title"] = "Index";
+}
+
+<h1>Index</h1>
+
+<p>
+    <a asp-action="Create">Create New</a>
+</p>
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                @Html.DisplayNameFor(model => model.Customerpassid)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Checkindatetime)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Trainerid)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Customerpass)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Trainer)
+            </th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+@foreach (var item in Model) {
+        <tr>
+            <td>
+                @Html.DisplayFor(model => item.Customerpassid)
+            </td>
+            <td>
+                @Html.DisplayFor(model => item.Checkindatetime)
+            </td>
+            <td>
+                @Html.DisplayFor(model => item.Trainerid)
+            </td>
+            <td>
+                @Html.DisplayFor(model => item.Customerpass)
+            </td>
+            <td>
+                @Html.DisplayFor(model => item.Trainer)
+            </td>
+            <td>
+                <a asp-action="Edit" asp-route-id="@item.Checkinid">Edit</a> |
+                <a asp-action="Details" asp-route-id="@item.Checkinid">Details</a> |
+                <a asp-action="Delete" asp-route-id="@item.Checkinid">Delete</a>
+            </td>
+        </tr>
+}
+    </tbody>
+</table>
