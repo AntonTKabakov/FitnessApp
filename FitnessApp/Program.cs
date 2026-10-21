@@ -17,6 +17,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
 
 builder.Services.AddScoped<ITrainerService, TrainerService>();
+builder.Services.AddScoped<IGympassService, GympassService>();
 ///////////////////////////////////////////////////////////////////////////////////
 
 var app = builder.Build();
