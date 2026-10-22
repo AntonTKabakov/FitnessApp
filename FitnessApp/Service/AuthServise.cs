@@ -33,7 +33,9 @@ public class AuthService
 
     public string? CheckRegisterRequest(RegisterRequest req)
     {
-        var email = (req.Email ?? string.Empty).Trim().ToLowerInvariant();
+        var email = (req.Email ?? string.Empty)
+            .Trim()
+            .ToLowerInvariant();
 
         if (string.IsNullOrWhiteSpace(email))
             return "Email is required.";
@@ -41,13 +43,109 @@ public class AuthService
         if (!new EmailAddressAttribute().IsValid(email))
             return "Email format is invalid.";
 
-        if (string.IsNullOrWhiteSpace(req.Password) || req.Password.Length < 8)
+        if (string.IsNullOrWhiteSpace(req.Password) ||
+            req.Password.Length < 8)
             return "Password must be at least 8 characters.";
 
         if (req.Username?.Trim().Length > 50)
             return "Username must be 50 characters or fewer.";
 
+        if (req.Dateofbirth == default)
+            return "Date of birth is required.";
+
+        if (req.Dateofbirth > DateOnly.FromDateTime(DateTime.UtcNow))
+            return "Date of birth cannot be in the future.";
+
         return null;
+    }
+
+    public async Task<AuthResult> CreateUser(
+        RegisterRequest req,
+        CancellationToken cancellationToken = default)
+    {
+        var validationError = CheckRegisterRequest(req);
+
+        if (validationError is not null)
+            return AuthResult.Failure(validationError);
+
+        var email = req.Email.Trim().ToLowerInvariant();
+
+        var exists = await _db.Customers
+            .AnyAsync(u => u.Email == email, cancellationToken);
+
+        if (exists)
+            return AuthResult.Failure("Email already exists.");
+
+        var user = new User
+        {
+            Email = email,
+            Fullname = string.IsNullOrWhiteSpace(req.Username)
+                ? string.Empty
+                : req.Username.Trim(),
+            Dateofbirth = req.Dateofbirth
+        };
+
+        user.Password = _userHasher.HashPassword(
+            user,
+            req.Password);
+
+        _db.Customers.Add(user);
+
+        await _db.SaveChangesAsync(cancellationToken);
+
+        await IssueTokens(user, cancellationToken);
+
+        return AuthResult.Success(
+            user.Id,
+            user.Email,
+            user.Fullname);
+    }
+
+    public async Task<AuthResult> Login(
+        LoginRequest req,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(req.Email) ||
+            string.IsNullOrWhiteSpace(req.Password))
+        {
+            return AuthResult.Failure("Email and password are required.");
+        }
+
+        var email = req.Email.Trim().ToLowerInvariant();
+
+        var user = await _db.Customers
+            .SingleOrDefaultAsync(
+                u => u.Email == email,
+                cancellationToken);
+
+        if (user is null || string.IsNullOrWhiteSpace(user.Password))
+            return AuthResult.Failure("Invalid email or password.");
+
+        var verificationResult = _userHasher.VerifyHashedPassword(
+            user,
+            user.Password,
+            req.Password);
+
+        if (verificationResult == PasswordVerificationResult.Failed)
+            return AuthResult.Failure("Invalid email or password.");
+
+        if (verificationResult ==
+            PasswordVerificationResult.SuccessRehashNeeded)
+        {
+            user.Password = _userHasher.HashPassword(
+                user,
+                req.Password);
+        }
+
+
+        await IssueTokens(user, cancellationToken);
+
+        await _db.SaveChangesAsync(cancellationToken);
+
+        return AuthResult.Success(
+            user.Id,
+            user.Email,
+            user.Fullname);
     }
 
     private async Task IssueTokens(
@@ -55,7 +153,8 @@ public class AuthService
         CancellationToken cancellationToken)
     {
         var httpContext = _httpContextAccessor.HttpContext
-            ?? throw new InvalidOperationException("No active HTTP context.");
+            ?? throw new InvalidOperationException(
+                "No active HTTP context.");
 
         string refreshJwt;
         string hashedRefreshToken;
@@ -66,31 +165,32 @@ public class AuthService
             refreshJwt = _tokenService.GenerateRefreshToken();
             hashedRefreshToken = TokenHasher.Hash(refreshJwt);
 
-            exists = await _db.RefreshToken
-                .AnyAsync(
-                    rt => rt.Token == hashedRefreshToken,
-                    cancellationToken);
+            exists = await _db.RefreshTokens.AnyAsync(
+                rt => rt.Token == hashedRefreshToken,
+                cancellationToken);
         }
         while (exists);
 
-        var refreshTokenExpiresAt = DateTime.UtcNow.AddDays(7);
+        var now = DateTime.UtcNow;
+        var refreshTokenExpiresAt = now.AddDays(7);
 
-        var newRefreshToken = new RefreshToken
+        var refreshToken = new RefreshToken
         {
             User = user,
             UserId = user.Id,
-            ExpiresAt = refreshTokenExpiresAt,
-            CreatedAt = DateTime.UtcNow,
-            Token = hashedRefreshToken
+            Token = hashedRefreshToken,
+            CreatedAt = now,
+            ExpiresAt = refreshTokenExpiresAt
         };
 
-        _db.RefreshToken.Add(newRefreshToken);
+        _db.RefreshTokens.Add(refreshToken);
+
         await _db.SaveChangesAsync(cancellationToken);
 
         var accessToken = _tokenService.GenerateAccessToken(
             user.Id.ToString());
 
-        var accessTokenExpiresAt = DateTime.UtcNow.AddMinutes(15);
+        var accessTokenExpiresAt = now.AddMinutes(15);
 
         httpContext.Response.Cookies.Append(
             "access_token",
@@ -106,10 +206,10 @@ public class AuthService
     private CookieOptions BuildCookieOptions(DateTime expiresAt)
     {
         var httpContext = _httpContextAccessor.HttpContext
-            ?? throw new InvalidOperationException("No active HTTP context.");
+            ?? throw new InvalidOperationException(
+                "No active HTTP context.");
 
-        var secure = _authCookieSettings.Secure
-            && httpContext.Request.IsHttps;
+        var secure = _authCookieSettings.Secure;
 
         return new CookieOptions
         {
@@ -126,7 +226,8 @@ public class AuthService
 
     private SameSiteMode ResolveSameSite(bool secure)
     {
-        return !secure && _authCookieSettings.SameSite == SameSiteMode.None
+        return !secure &&
+               _authCookieSettings.SameSite == SameSiteMode.None
             ? SameSiteMode.Lax
             : _authCookieSettings.SameSite;
     }
@@ -134,20 +235,25 @@ public class AuthService
     private string? ResolveCookieDomain()
     {
         var httpContext = _httpContextAccessor.HttpContext
-            ?? throw new InvalidOperationException("No active HTTP context.");
+            ?? throw new InvalidOperationException(
+                "No active HTTP context.");
 
         var configuredDomain = _authCookieSettings.Domain;
         var requestHost = httpContext.Request.Host.Host;
 
         if (string.IsNullOrWhiteSpace(configuredDomain) ||
             string.IsNullOrWhiteSpace(requestHost) ||
-            requestHost.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+            requestHost.Equals(
+                "localhost",
+                StringComparison.OrdinalIgnoreCase) ||
             IPAddress.TryParse(requestHost, out _))
         {
             return null;
         }
 
-        var normalizedDomain = configuredDomain.Trim().TrimStart('.');
+        var normalizedDomain = configuredDomain
+            .Trim()
+            .TrimStart('.');
 
         if (string.IsNullOrWhiteSpace(normalizedDomain))
             return null;

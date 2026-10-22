@@ -1,4 +1,5 @@
-﻿using FitnessApp.Models;
+﻿
+using FitnessApp.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace FitnessApp.Data;
@@ -10,151 +11,215 @@ public partial class AppDbContext : DbContext
     {
     }
 
-    public virtual DbSet<Checkin> Checkins { get; set; }
-    public virtual DbSet<User> Customers { get; set; }
-    public virtual DbSet<Customerpass> Customerpasses { get; set; }
-    public virtual DbSet<Gympass> Gympasses { get; set; }
-    public virtual DbSet<RefreshToken> RefreshToken { get; set; }
-    public virtual DbSet<Trainer> Trainers { get; set; }
+    // Database tables
+    public virtual DbSet<User> Users => Set<User>();
+    public virtual DbSet<Checkin> Checkins => Set<Checkin>();
+    public virtual DbSet<Customerpass> Customerpasses => Set<Customerpass>();
+    public virtual DbSet<Gympass> Gympasses => Set<Gympass>();
+    public virtual DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public virtual DbSet<Trainer> Trainers => Set<Trainer>();
+
+    // Optional alias for existing code using Customers
+    public virtual DbSet<User> Customers => Users;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<Checkin>(entity =>
-        {
-            entity.HasKey(e => e.Checkinid).HasName("checkins_pkey");
+        base.OnModelCreating(modelBuilder);
 
-            entity.ToTable("checkins");
-
-            entity.Property(e => e.Checkinid).HasColumnName("checkinid");
-
-            entity.Property(e => e.Checkindatetime)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("checkindatetime");
-
-            entity.Property(e => e.Customerpassid).HasColumnName("customerpassid");
-            entity.Property(e => e.Trainerid).HasColumnName("trainerid");
-
-            entity.HasOne(d => d.Customerpass)
-                .WithMany(p => p.Checkins)
-                .HasForeignKey(d => d.Customerpassid)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("fk_checkins_customerpasses");
-
-            entity.HasOne(d => d.Trainer)
-                .WithMany(p => p.Checkins)
-                .HasForeignKey(d => d.Trainerid)
-                .HasConstraintName("fk_checkins_trainers");
-        });
+        // =============================
+        // USERS / CUSTOMERS
+        // =============================
 
         modelBuilder.Entity<User>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("customers_pkey");
-
             entity.ToTable("customers");
 
-            entity.HasIndex(e => e.Phone, "customers_phone_key")
-                .IsUnique();
+            entity.HasKey(e => e.Id)
+                .HasName("customers_pkey");
 
-            entity.Property(e => e.Id).HasColumnName("customerid");
-            entity.Property(e => e.Dateofbirth).HasColumnName("dateofbirth");
-
-            entity.Property(e => e.Email)
-                .HasMaxLength(100)
-                .HasColumnName("email");
+            entity.Property(e => e.Id)
+                .HasColumnName("customerid")
+                .ValueGeneratedOnAdd();
 
             entity.Property(e => e.Fullname)
+                .HasColumnName("fullname")
                 .HasMaxLength(100)
-                .HasColumnName("fullname");
+                .IsRequired();
 
-            entity.Property(e => e.Phone)
-                .HasMaxLength(20)
-                .HasColumnName("phone");
+            entity.Property(e => e.Email)
+                .HasColumnName("email")
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(e => e.Password)
+                .HasColumnName("password")
+                .IsRequired();
+
+            entity.Property(e => e.Dateofbirth)
+                .HasColumnName("dateofbirth");
+
+            entity.HasIndex(e => e.Email)
+                .IsUnique();
+
+            entity.HasMany(e => e.RefreshTokens)
+                .WithOne(e => e.User)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_refreshtokens_customers");
         });
+
+        // =============================
+        // CUSTOMER PASSES
+        // =============================
 
         modelBuilder.Entity<Customerpass>(entity =>
         {
+            entity.ToTable("customerpasses");
+
             entity.HasKey(e => e.Customerpassid)
                 .HasName("customerpasses_pkey");
 
-            entity.ToTable("customerpasses");
+            entity.Property(e => e.Customerpassid)
+                .HasColumnName("customerpassid");
 
-            entity.Property(e => e.Customerpassid).HasColumnName("customerpassid");
-            entity.Property(e => e.Customerid).HasColumnName("customerid");
-            entity.Property(e => e.Expirydate).HasColumnName("expirydate");
-            entity.Property(e => e.Passtypeid).HasColumnName("passtypeid");
+            entity.Property(e => e.Customerid)
+                .HasColumnName("customerid");
+
+            entity.Property(e => e.Passtypeid)
+                .HasColumnName("passtypeid");
 
             entity.Property(e => e.Purchasedate)
-                .HasDefaultValueSql("CURRENT_DATE")
-                .HasColumnName("purchasedate");
+                .HasColumnName("purchasedate")
+                .HasDefaultValueSql("CURRENT_DATE");
 
-            entity.Property(e => e.Remainingvisits).HasColumnName("remainingvisits");
+            entity.Property(e => e.Expirydate)
+                .HasColumnName("expirydate");
 
-            entity.HasOne(d => d.Customer)
-                .WithMany(p => p.Customerpasses)
-                .HasForeignKey(d => d.Customerid)
+            entity.Property(e => e.Remainingvisits)
+                .HasColumnName("remainingvisits");
+
+            entity.HasOne(e => e.Customer)
+                .WithMany(e => e.Customerpasses)
+                .HasForeignKey(e => e.Customerid)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("fk_customerpasses_customers");
 
-            entity.HasOne(d => d.Passtype)
-                .WithMany(p => p.Customerpasses)
-                .HasForeignKey(d => d.Passtypeid)
+            entity.HasOne(e => e.Passtype)
+                .WithMany(e => e.Customerpasses)
+                .HasForeignKey(e => e.Passtypeid)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("fk_customerpasses_gympasses");
         });
 
+        // =============================
+        // GYM PASSES
+        // =============================
+
         modelBuilder.Entity<Gympass>(entity =>
         {
-            entity.HasKey(e => e.Passtypeid).HasName("gympasses_pkey");
-
             entity.ToTable("gympasses");
+
+            entity.HasKey(e => e.Passtypeid)
+                .HasName("gympasses_pkey");
+
+            entity.Property(e => e.Passtypeid)
+                .HasColumnName("passtypeid");
+
+            entity.Property(e => e.Passname)
+                .HasColumnName("passname")
+                .HasMaxLength(50);
+
+            entity.Property(e => e.Price)
+                .HasColumnName("price")
+                .HasPrecision(6, 2);
+
+            entity.Property(e => e.Maxvisits)
+                .HasColumnName("maxvisits");
+
+            entity.Property(e => e.Validitydays)
+                .HasColumnName("validitydays");
 
             entity.HasIndex(e => e.Passname, "gympasses_passname_key")
                 .IsUnique();
-
-            entity.Property(e => e.Passtypeid).HasColumnName("passtypeid");
-            entity.Property(e => e.Maxvisits).HasColumnName("maxvisits");
-
-            entity.Property(e => e.Passname)
-                .HasMaxLength(50)
-                .HasColumnName("passname");
-
-            entity.Property(e => e.Price)
-                .HasPrecision(6, 2)
-                .HasColumnName("price");
-
-            entity.Property(e => e.Validitydays).HasColumnName("validitydays");
         });
+
+        // =============================
+        // CHECKINS
+        // =============================
+
+        modelBuilder.Entity<Checkin>(entity =>
+        {
+            entity.ToTable("checkins");
+
+            entity.HasKey(e => e.Checkinid)
+                .HasName("checkins_pkey");
+
+            entity.Property(e => e.Checkinid)
+                .HasColumnName("checkinid");
+
+            entity.Property(e => e.Customerpassid)
+                .HasColumnName("customerpassid");
+
+            entity.Property(e => e.Trainerid)
+                .HasColumnName("trainerid");
+
+            entity.Property(e => e.Checkindatetime)
+                .HasColumnName("checkindatetime")
+                .HasColumnType("timestamp without time zone")
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            entity.HasOne(e => e.Customerpass)
+                .WithMany(e => e.Checkins)
+                .HasForeignKey(e => e.Customerpassid)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("fk_checkins_customerpasses");
+
+            entity.HasOne(e => e.Trainer)
+                .WithMany(e => e.Checkins)
+                .HasForeignKey(e => e.Trainerid)
+                .HasConstraintName("fk_checkins_trainers");
+        });
+
+        // =============================
+        // TRAINERS
+        // =============================
 
         modelBuilder.Entity<Trainer>(entity =>
         {
-            entity.HasKey(e => e.Trainerid).HasName("trainers_pkey");
-
             entity.ToTable("trainers");
+
+            entity.HasKey(e => e.Trainerid)
+                .HasName("trainers_pkey");
+
+            entity.Property(e => e.Trainerid)
+                .HasColumnName("trainerid");
+
+            entity.Property(e => e.Fullname)
+                .HasColumnName("fullname")
+                .HasMaxLength(100);
+
+            entity.Property(e => e.Phone)
+                .HasColumnName("phone")
+                .HasMaxLength(20);
+
+            entity.Property(e => e.Specialty)
+                .HasColumnName("specialty")
+                .HasMaxLength(50);
 
             entity.HasIndex(e => e.Phone, "trainers_phone_key")
                 .IsUnique();
-
-            entity.Property(e => e.Trainerid).HasColumnName("trainerid");
-
-            entity.Property(e => e.Fullname)
-                .HasMaxLength(100)
-                .HasColumnName("fullname");
-
-            entity.Property(e => e.Phone)
-                .HasMaxLength(20)
-                .HasColumnName("phone");
-
-            entity.Property(e => e.Specialty)
-                .HasMaxLength(50)
-                .HasColumnName("specialty");
         });
+
+        // =============================
+        // REFRESH TOKENS
+        // =============================
 
         modelBuilder.Entity<RefreshToken>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("refreshtokens_pkey");
-
             entity.ToTable("refreshtokens");
+
+            entity.HasKey(e => e.Id)
+                .HasName("refreshtokens_pkey");
 
             entity.Property(e => e.Id)
                 .HasColumnName("id")
@@ -164,12 +229,9 @@ public partial class AppDbContext : DbContext
                 .HasColumnName("userid");
 
             entity.Property(e => e.Token)
+                .HasColumnName("token")
                 .HasMaxLength(256)
-                .IsRequired()
-                .HasColumnName("token");
-
-            entity.HasIndex(e => e.Token)
-                .IsUnique();
+                .IsRequired();
 
             entity.Property(e => e.ExpiresAt)
                 .HasColumnName("expiresat")
@@ -180,11 +242,10 @@ public partial class AppDbContext : DbContext
                 .HasColumnType("timestamp with time zone")
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-            entity.HasOne(e => e.User)
-                .WithMany()
-                .HasForeignKey(e => e.UserId)
-                .OnDelete(DeleteBehavior.Cascade)
-                .HasConstraintName("fk_refreshtokens_customers");
+            entity.HasIndex(e => e.Token)
+                .IsUnique();
+
+            // Relationship configured in User mapping
         });
 
         OnModelCreatingPartial(modelBuilder);

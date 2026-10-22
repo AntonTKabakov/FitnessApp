@@ -2,11 +2,31 @@
 
 namespace FitnessApp.DTO;
 
-public record RegisterRequest(
-    [Required, EmailAddress, MaxLength(255)] string Email,
-    [Required, MinLength(8), MaxLength(128)] string Password,
-    [MaxLength(50)] string? Username);
+public class RegisterRequest
+{
+    public string Email { get; set; } = string.Empty;
+    public string Password { get; set; } = string.Empty;
+    public string? Username { get; set; }
+    public DateOnly Dateofbirth { get; set; }
+}
 
 public record LoginRequest(
     [Required, EmailAddress, MaxLength(255)] string Email,
     [Required, MaxLength(128)] string Password);
+
+public record AuthResult(
+    bool IsSuccess,
+    string? Error,
+    int? Id,
+    string? Email,
+    string? Username)
+{
+    public static AuthResult Failure(string error) =>
+        new(false, error, null, null, null);
+
+    public static AuthResult Success(
+        int id,
+        string email,
+        string username) =>
+        new(true, null, id, email, username);
+}

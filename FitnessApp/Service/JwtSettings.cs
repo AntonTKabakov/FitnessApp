@@ -28,4 +28,23 @@ public class JwtSettings
             AccessSecret = accessSecret
         };
     }
+
+    public static JwtSettings FromConfiguration(
+        IConfiguration configuration)
+    {
+        var accessSecret = configuration["Jwt:AccessSecret"];
+
+        if (string.IsNullOrWhiteSpace(accessSecret))
+            throw new InvalidOperationException(
+                "Jwt:AccessSecret must be configured.");
+
+        if (Encoding.UTF8.GetByteCount(accessSecret) < 32)
+            throw new InvalidOperationException(
+                "JWT secret must be at least 32 bytes.");
+
+        return new JwtSettings
+        {
+            AccessSecret = accessSecret
+        };
+    }
 }

@@ -7,15 +7,15 @@ public partial class User
 {
     public int Id { get; set; }
 
-    public string Fullname { get; set; } = null!;
+    public string Fullname { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public DateOnly? Dateofbirth { get; set; }
 
-    public string Phone { get; set; } = null!;
+    public string Password { get; set; } = string.Empty;
 
-    public string? Email { get; set; }
+    public virtual ICollection<Customerpass> Customerpasses { get; set; }
+        = new List<Customerpass>();
 
-    public string Password { get; set; }
-
-    public DateOnly Dateofbirth { get; set; }
-
-    public virtual ICollection<Customerpass> Customerpasses { get; set; } = new List<Customerpass>();
+    public virtual ICollection<RefreshToken> RefreshTokens { get; set; }
+        = new List<RefreshToken>();
 }

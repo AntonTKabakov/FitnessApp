@@ -1,4 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 
 namespace FitnessApp.Service;
 
@@ -10,18 +12,23 @@ public class AuthCookieSettings
 
     public string? Domain { get; init; }
 
-    public static AuthCookieSettings FromEnvironment(IHostEnvironment environment)
+    public static AuthCookieSettings FromConfiguration(
+        IConfiguration configuration,
+        IHostEnvironment environment)
     {
-        var secure = ParseBoolean(
-            Environment.GetEnvironmentVariable("AUTH_COOKIE_SECURE"),
-            defaultValue: !environment.IsDevelopment());
-        var sameSite = ParseSameSiteMode(Environment.GetEnvironmentVariable("AUTH_COOKIE_SAME_SITE"));
-        var domain = NormalizeOptionalValue(Environment.GetEnvironmentVariable("AUTH_COOKIE_DOMAIN"));
+        var section = configuration.GetSection("AuthCookie");
+
+        var secure = section.GetValue<bool?>("Secure")
+                     ?? !environment.IsDevelopment();
+
+        var sameSite = ParseSameSiteMode(section["SameSite"]);
+
+        var domain = NormalizeOptionalValue(section["Domain"]);
 
         if (sameSite == SameSiteMode.None && !secure)
         {
             throw new InvalidOperationException(
-                "AUTH_COOKIE_SECURE must be true when AUTH_COOKIE_SAME_SITE is set to None.");
+                "AuthCookie:Secure must be true when AuthCookie:SameSite is None.");
         }
 
         return new AuthCookieSettings
@@ -32,19 +39,10 @@ public class AuthCookieSettings
         };
     }
 
-    private static bool ParseBoolean(string? value, bool defaultValue)
-    {
-        return bool.TryParse(value, out var parsedValue)
-            ? parsedValue
-            : defaultValue;
-    }
-
     private static SameSiteMode ParseSameSiteMode(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
-        {
             return SameSiteMode.Lax;
-        }
 
         return value.Trim().ToLowerInvariant() switch
         {
@@ -52,13 +50,16 @@ public class AuthCookieSettings
             "lax" => SameSiteMode.Lax,
             "none" => SameSiteMode.None,
             _ => throw new InvalidOperationException(
-                "AUTH_COOKIE_SAME_SITE must be one of Strict, Lax, or None.")
+                "AuthCookie:SameSite must be Strict, Lax, or None.")
         };
     }
 
     private static string? NormalizeOptionalValue(string? value)
     {
-        var normalizedValue = value?.Trim();
-        return string.IsNullOrWhiteSpace(normalizedValue) ? null : normalizedValue;
+        var normalized = value?.Trim();
+
+        return string.IsNullOrWhiteSpace(normalized)
+            ? null
+            : normalized;
     }
 }

@@ -223,6 +223,7 @@ namespace FitnessApp.Migrations
                         .HasColumnName("dateofbirth");
 
                     b.Property<string>("Email")
+                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("email");
@@ -235,18 +236,13 @@ namespace FitnessApp.Migrations
 
                     b.Property<string>("Password")
                         .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Phone")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("phone");
+                        .HasColumnType("text")
+                        .HasColumnName("password");
 
                     b.HasKey("Id")
                         .HasName("customers_pkey");
 
-                    b.HasIndex(new[] { "Phone" }, "customers_phone_key")
+                    b.HasIndex("Email")
                         .IsUnique();
 
                     b.ToTable("customers", (string)null);
@@ -292,7 +288,7 @@ namespace FitnessApp.Migrations
             modelBuilder.Entity("FitnessApp.Models.RefreshToken", b =>
                 {
                     b.HasOne("FitnessApp.Models.User", "User")
-                        .WithMany()
+                        .WithMany("RefreshTokens")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
@@ -319,6 +315,8 @@ namespace FitnessApp.Migrations
             modelBuilder.Entity("FitnessApp.Models.User", b =>
                 {
                     b.Navigation("Customerpasses");
+
+                    b.Navigation("RefreshTokens");
                 });
 #pragma warning restore 612, 618
         }
