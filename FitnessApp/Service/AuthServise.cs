@@ -267,4 +267,126 @@ public class AuthService
             ? normalizedDomain
             : null;
     }
+
+
+    public async Task<AuthResult> Refresh(
+        CancellationToken cancellationToken = default)
+    {
+        var httpContext = _httpContextAccessor.HttpContext
+                          ?? throw new InvalidOperationException(
+                              "No active HTTP context.");
+
+        if (!httpContext.Request.Cookies.TryGetValue(
+                "refresh_token", out var refreshJwt) ||
+            string.IsNullOrWhiteSpace(refreshJwt))
+        {
+            ClearAuthCookies();
+
+            return AuthResult.Failure(
+                "Refresh token is missing.");
+        }
+
+        var hashedToken = TokenHasher.Hash(refreshJwt);
+
+        var storedToken = await _db.RefreshTokens
+            .Include(rt => rt.User)
+            .SingleOrDefaultAsync(
+                rt => rt.Token == hashedToken,
+                cancellationToken);
+
+        if (storedToken is null)
+        {
+            ClearAuthCookies();
+
+            return AuthResult.Failure(
+                "Invalid refresh token.");
+        }
+
+        if (storedToken.ExpiresAt <= DateTime.UtcNow)
+        {
+            _db.RefreshTokens.Remove(storedToken);
+
+            await _db.SaveChangesAsync(cancellationToken);
+
+            ClearAuthCookies();
+
+            return AuthResult.Failure(
+                "Refresh token has expired.");
+        }
+
+        var user = storedToken.User;
+
+        if (user is null)
+        {
+            ClearAuthCookies();
+
+            return AuthResult.Failure(
+                "User no longer exists.");
+        }
+
+        _db.RefreshTokens.Remove(storedToken);
+
+        await IssueTokens(user, cancellationToken);
+
+        return AuthResult.Success(
+            user.Id,
+            user.Email,
+            user.Fullname);
+    }
+
+
+    public async Task Logout(
+        CancellationToken cancellationToken = default)
+    {
+        var httpContext = _httpContextAccessor.HttpContext
+                          ?? throw new InvalidOperationException(
+                              "No active HTTP context.");
+
+        if (httpContext.Request.Cookies.TryGetValue(
+                "refresh_token", out var refreshJwt) &&
+            !string.IsNullOrWhiteSpace(refreshJwt))
+        {
+            var hashedToken = TokenHasher.Hash(refreshJwt);
+
+            var storedToken = await _db.RefreshTokens
+                .SingleOrDefaultAsync(
+                    rt => rt.Token == hashedToken,
+                    cancellationToken);
+
+            if (storedToken is not null)
+            {
+                _db.RefreshTokens.Remove(storedToken);
+
+                await _db.SaveChangesAsync(cancellationToken);
+            }
+        }
+
+        ClearAuthCookies();
+    }
+
+
+
+    private void ClearAuthCookies()
+    {
+        var httpContext = _httpContextAccessor.HttpContext
+                          ?? throw new InvalidOperationException(
+                              "No active HTTP context.");
+
+        var options = new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = _authCookieSettings.Secure,
+            SameSite = ResolveSameSite(
+                _authCookieSettings.Secure),
+            Path = "/",
+            Domain = ResolveCookieDomain()
+        };
+
+        httpContext.Response.Cookies.Delete(
+            "access_token", options);
+
+        httpContext.Response.Cookies.Delete(
+            "refresh_token", options);
+    }
+
 }

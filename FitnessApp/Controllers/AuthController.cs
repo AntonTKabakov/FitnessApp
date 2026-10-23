@@ -1,4 +1,5 @@
-﻿using FitnessApp.DTO;
+﻿
+using FitnessApp.DTO;
 using FitnessApp.Service;
 using Microsoft.AspNetCore.Mvc;
 
@@ -24,9 +25,15 @@ public class AuthController : ControllerBase
             req, cancellationToken);
 
         if (!result.IsSuccess)
-            return BadRequest(result.Error);
+            return BadRequest(new { error = result.Error });
 
-        return Ok(new { result.Id });
+        return Ok(new
+        {
+            message = "Registration successful.",
+            result.Id,
+            result.Email,
+            result.Username
+        });
     }
 
     [HttpPost("login")]
@@ -47,5 +54,33 @@ public class AuthController : ControllerBase
             result.Email,
             result.Username
         });
+    }
+
+    [HttpPost("refresh")]
+    public async Task<IActionResult> Refresh(
+        CancellationToken cancellationToken)
+    {
+        var result = await _authService.Refresh(
+            cancellationToken);
+
+        if (!result.IsSuccess)
+            return Unauthorized(new { error = result.Error });
+
+        return Ok(new
+        {
+            message = "Tokens refreshed successfully.",
+            result.Id,
+            result.Email,
+            result.Username
+        });
+    }
+
+    [HttpDelete("session")]
+    public async Task<IActionResult> Logout(
+        CancellationToken cancellationToken)
+    {
+        await _authService.Logout(cancellationToken);
+
+        return NoContent();
     }
 }
