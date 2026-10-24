@@ -28,6 +28,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<ITrainerService, TrainerService>();
 builder.Services.AddScoped<IGympassService, GympassService>();
 builder.Services.AddScoped<ICheckinService, CheckinService>();
+builder.Services.AddScoped<ReceptionQueryService>();
 
 // Authentication services
 var jwtSettings = JwtSettings.FromConfiguration(

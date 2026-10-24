@@ -4,6 +4,9 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <BuildTailwind Condition="'$(BuildTailwind)' == ''">true</BuildTailwind>
+    <TailwindPowerShell Condition="'$(TailwindPowerShell)' == '' and '$(OS)' == 'Windows_NT'">powershell</TailwindPowerShell>
+    <TailwindPowerShell Condition="'$(TailwindPowerShell)' == ''">pwsh</TailwindPowerShell>
   </PropertyGroup>
 
   <ItemGroup>
@@ -20,5 +23,24 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.23.0" />
   </ItemGroup>
+
+  <ItemGroup>
+    <TailwindInput Include="Views/**/*.cshtml;wwwroot/js/**/*.js;Styles/**/*.css;../scripts/build-css.ps1;../scripts/tailwind-release.json;$(MSBuildProjectFullPath)" />
+  </ItemGroup>
+
+  <Target Name="BuildTailwindStyles"
+          BeforeTargets="PrepareForBuild;ComputeFilesToPublish"
+          Condition="'$(BuildTailwind)' == 'true' and '$(DesignTimeBuild)' != 'true'"
+          Inputs="@(TailwindInput)"
+          Outputs="$(MSBuildProjectDirectory)/wwwroot/css/tailwind.css">
+    <Exec Command="&quot;$(TailwindPowerShell)&quot; -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)/../scripts/build-css.ps1&quot;" />
+  </Target>
+
+  <Target Name="RequireTailwindStyles"
+          BeforeTargets="PrepareForBuild;ComputeFilesToPublish"
+          Condition="'$(BuildTailwind)' != 'true' and '$(DesignTimeBuild)' != 'true'">
+    <Error Condition="!Exists('$(MSBuildProjectDirectory)/wwwroot/css/tailwind.css')"
+           Text="Compiled Tailwind CSS is missing. Run scripts/build-css.ps1 or enable BuildTailwind." />
+  </Target>
 
 </Project>

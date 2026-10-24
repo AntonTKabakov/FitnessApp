@@ -1,0 +1,38 @@
+@model CustomersViewModel
+@{ ViewData["Title"] = "Customers"; }
+<div class="mb-7 flex flex-wrap items-start justify-between gap-4">
+    <div><h1 class="page-heading">Customers</h1><p class="page-description">Find a customer, check their pass, and confirm their entry.</p></div>
+    <a class="btn btn-primary" asp-action="Create"><partial name="_Icon" model='@("plus")' /> New customer</a>
+</div>
+<section class="panel" aria-label="Customer directory">
+    <form asp-action="Index" method="get" class="flex flex-col gap-3 p-5 sm:flex-row" role="search">
+        <div class="flex-1"><label for="customer-query" class="sr-only">Customer name or email</label><input id="customer-query" name="query" value="@Model.Query" type="search" class="input" placeholder="Search by name or email" maxlength="100" /></div>
+        <button type="submit" class="btn btn-primary">Search</button>
+        @if (Model.Query != null) { <a class="btn btn-secondary" asp-action="Index">Clear</a> }
+    </form>
+    @if (Model.Customers.Count == 0)
+    {
+        <div class="empty-state"><h2 class="text-lg font-semibold">@(Model.Query == null ? "No customers yet" : "No matching customers")</h2><p class="mt-2 text-sm text-slate-500">@(Model.Query == null ? "Registered customer accounts will appear here." : "Try another name or email address.")</p></div>
+    }
+    else
+    {
+        <div class="table-wrap" tabindex="0" role="region" aria-label="Customers table">
+            <table class="data-table min-w-140">
+                <caption class="sr-only">Customer directory</caption>
+                <thead><tr><th scope="col">Customer</th><th scope="col">Email</th><th scope="col">Pass status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+                <tbody>
+                    @foreach (var customer in Model.Customers)
+                    {
+                        <tr>
+                            <td><a asp-action="Details" asp-route-id="@customer.Id" class="font-semibold hover:text-emerald-800">@customer.DisplayName</a><p class="mt-1 text-xs text-slate-500">Customer #@customer.Id</p></td>
+                            <td class="break-all">@customer.Email</td>
+                            <td><span class="badge @(customer.ActivePasses > 0 ? "badge-success" : "badge-neutral")">@(customer.ActivePasses > 0 ? $"{customer.ActivePasses} active" : "No active pass")</span></td>
+                            <td><a class="text-link whitespace-nowrap" asp-action="Details" asp-route-id="@customer.Id" aria-label="Open profile for @customer.DisplayName">View profile</a></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <partial name="_Pagination" model="Model.Pagination" />
+    }
+</section>

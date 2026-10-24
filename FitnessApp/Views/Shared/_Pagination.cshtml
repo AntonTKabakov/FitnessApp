@@ -1,0 +1,15 @@
+@model PaginationViewModel
+@{
+    var previous = new Dictionary<string, string>(Model.RouteValues) { ["page"] = (Model.Page - 1).ToString() };
+    var next = new Dictionary<string, string>(Model.RouteValues) { ["page"] = (Model.Page + 1).ToString() };
+}
+@if (Model.TotalCount > 0)
+{
+    <nav aria-label="Pagination" class="flex flex-wrap items-center justify-between gap-4 border-t border-slate-200 px-5 py-4">
+        <p class="text-sm text-slate-500">Page @Model.Page of @Model.TotalPages <span class="ml-2">@Model.TotalCount results</span></p>
+        <div class="flex gap-2">
+            @if (Model.Page > 1) { <a class="btn btn-secondary min-h-10 py-2" asp-action="Index" asp-all-route-data="previous" rel="prev">Previous</a> }
+            @if (Model.Page < Model.TotalPages) { <a class="btn btn-secondary min-h-10 py-2" asp-action="Index" asp-all-route-data="next" rel="next">Next</a> }
+        </div>
+    </nav>
+}

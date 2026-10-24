@@ -1,54 +1,14 @@
-@model FitnessApp.Models.Checkin
-
-@{
-    ViewData["Title"] = "Edit";
-}
-
-<h1>Edit</h1>
-
-<h4>Checkin</h4>
-<hr />
-<div class="row">
-    <div class="col-md-4">
-        <form asp-action="Edit">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            <input type="hidden" asp-for="Checkinid" />
-            <div class="form-group">
-                <label asp-for="Customerpassid" class="control-label"></label>
-                <input asp-for="Customerpassid" class="form-control" />
-                <span asp-validation-for="Customerpassid" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="Checkindatetime" class="control-label"></label>
-                <input asp-for="Checkindatetime" class="form-control" />
-                <span asp-validation-for="Checkindatetime" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="Trainerid" class="control-label"></label>
-                <input asp-for="Trainerid" class="form-control" />
-                <span asp-validation-for="Trainerid" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="Customerpass" class="control-label"></label>
-                <input asp-for="Customerpass" class="form-control" />
-                <span asp-validation-for="Customerpass" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="Trainer" class="control-label"></label>
-                <input asp-for="Trainer" class="form-control" />
-                <span asp-validation-for="Trainer" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <input type="submit" value="Save" class="btn btn-primary" />
-            </div>
-        </form>
-    </div>
-</div>
-
-<div>
-    <a asp-action="Index">Back to List</a>
-</div>
-
-@section Scripts {
-    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
-}
+﻿@model VisitEditViewModel
+@{ ViewData["Title"] = "Edit check-in trainer"; }
+<a class="text-link mb-5 inline-block text-sm" asp-action="Details" asp-route-id="@Model.Id">← Check-in details</a>
+<h1 class="page-heading">Edit trainer</h1><p class="page-description mb-7">Update the trainer associated with this entry.</p>
+<div class="panel max-w-3xl"><div class="panel-body">
+    <partial name="_VisitSummary" model="Model.Visit" />
+    <form asp-action="Edit" asp-route-id="@Model.Id" method="post" class="mt-6 space-y-5 border-t border-slate-200 pt-6">
+        <input asp-for="Id" type="hidden" />
+        <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div>
+        <div><label asp-for="TrainerId" class="label"></label><select asp-for="TrainerId" asp-items="Model.Trainers" class="input" aria-describedby="trainer-error"><option value="">Independent training</option></select><span asp-validation-for="TrainerId" id="trainer-error" class="field-error"></span></div>
+        <div class="flex flex-wrap gap-3"><button class="btn btn-primary" type="submit">Save trainer</button><a class="btn btn-secondary" asp-action="Details" asp-route-id="@Model.Id">Cancel</a></div>
+    </form>
+</div></div>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

@@ -1,0 +1,15 @@
+@{ ViewData["Title"] = "New customer"; }
+<a class="text-link mb-5 inline-block text-sm" asp-action="Index">← All customers</a>
+<h1 class="page-heading">New customer</h1>
+<p class="page-description mb-7">Register a customer at reception.</p>
+<div class="notice notice-info mb-6 max-w-2xl" role="status">Customer registration at reception is not available yet. Customer phone numbers and staff registration need to be connected before this form can be used.</div>
+<div class="panel max-w-2xl"><div class="panel-body">
+    <fieldset disabled class="space-y-5">
+        <legend class="sr-only">Customer details — currently unavailable</legend>
+        <div><label for="new-customer-name" class="label">Full name</label><input id="new-customer-name" class="input" type="text" autocomplete="off" /></div>
+        <div class="grid gap-5 sm:grid-cols-2"><div><label for="new-customer-phone" class="label">Phone number</label><input id="new-customer-phone" class="input" type="tel" autocomplete="off" /></div><div><label for="new-customer-email" class="label">Email</label><input id="new-customer-email" class="input" type="email" autocomplete="off" /></div></div>
+        <div><label for="new-customer-birth" class="label">Date of birth</label><input id="new-customer-birth" class="input" type="date" /><p class="mt-2 text-sm text-slate-500">Customers must be at least 14 years old.</p></div>
+        <button class="btn btn-primary" type="button" disabled>Create customer</button>
+    </fieldset>
+    <div class="mt-7 border-t border-slate-200 pt-5"><h2 class="font-semibold">Self-service account registration</h2><p class="mt-2 text-sm leading-6 text-slate-600">A customer can create their own account. Registration signs in to the newly created account.</p><a class="text-link mt-3 inline-block text-sm" asp-controller="Account" asp-action="Register">Open account registration →</a></div>
+</div></div>

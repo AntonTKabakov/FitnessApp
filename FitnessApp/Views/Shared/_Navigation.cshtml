@@ -1,0 +1,19 @@
+@{
+    var current = ViewContext.RouteData.Values["controller"]?.ToString();
+    var items = new[]
+    {
+        (Controller: "Home", Text: "Dashboard", Icon: "grid"),
+        (Controller: "Customers", Text: "Customers", Icon: "users"),
+        (Controller: "Visits", Text: "Check-ins", Icon: "check"),
+        (Controller: "Passes", Text: "Gym passes", Icon: "card"),
+        (Controller: "Team", Text: "Trainers", Icon: "activity")
+    };
+}
+<nav aria-label="Main navigation" class="space-y-1">
+    @foreach (var item in items)
+    {
+        <a asp-controller="@item.Controller" asp-action="Index" class="nav-link" aria-current="@(current == item.Controller ? "page" : null)">
+            <partial name="_Icon" model="item.Icon" /> @item.Text
+        </a>
+    }
+</nav>

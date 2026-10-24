@@ -1,8 +1,32 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
-}
-
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+﻿@model DashboardViewModel
+@{ ViewData["Title"] = "Dashboard"; }
+<div class="mb-8 flex flex-wrap items-start justify-between gap-4">
+    <div><h1 class="page-heading">Dashboard</h1><p class="page-description">A clear view of your club, ready for the day.</p></div>
+    <p class="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">@Model.Today.ToString("dddd, dd MMMM yyyy", System.Globalization.CultureInfo.InvariantCulture)</p>
 </div>
+<section aria-labelledby="customer-search-heading" class="panel mb-6">
+    <div class="panel-body">
+        <h2 id="customer-search-heading" class="text-lg font-semibold">Find a customer</h2>
+        <p class="mb-5 mt-1 text-sm text-slate-500">Search by name or email to open their profile and passes.</p>
+        <form asp-controller="Customers" asp-action="Index" method="get" class="flex flex-col gap-3 sm:flex-row" role="search">
+            <label for="dashboard-query" class="sr-only">Customer name or email</label>
+            <div class="relative flex-1"><span class="pointer-events-none absolute left-4 top-4 text-slate-400"><partial name="_Icon" model='@("search")' /></span><input id="dashboard-query" name="query" type="search" class="input pl-12" placeholder="Customer name or email" maxlength="100" /></div>
+            <button class="btn btn-primary" type="submit">Find customer <partial name="_Icon" model='@("arrow")' /></button>
+        </form>
+    </div>
+</section>
+<section aria-label="Quick actions" class="mb-8 grid gap-3 sm:grid-cols-3">
+    <a class="btn btn-secondary justify-start p-5" asp-controller="Customers" asp-action="Create"><span class="rounded-lg bg-slate-100 p-2"><partial name="_Icon" model='@("plus")' /></span> New customer</a>
+    <a class="btn btn-secondary justify-start p-5" asp-controller="Customers" asp-action="Index"><span class="rounded-lg bg-slate-100 p-2"><partial name="_Icon" model='@("card")' /></span> Customer passes</a>
+    <a class="btn btn-primary justify-start p-5" asp-controller="Visits" asp-action="Create"><span class="rounded-lg bg-white/15 p-2"><partial name="_Icon" model='@("check")' /></span> Confirm entry</a>
+</section>
+<section aria-label="Club statistics" class="mb-8 grid grid-cols-2 gap-3 xl:grid-cols-4">
+    @foreach (var statistic in new[] { (Label: "Check-ins today", Value: Model.TodayVisits), (Label: "With a trainer today", Value: Model.TrainerVisits), (Label: "Active passes", Value: Model.ActivePasses), (Label: "Registered customers", Value: Model.Customers) })
+    {
+        <div class="panel"><div class="panel-body"><p class="text-sm font-medium leading-5 text-slate-500">@statistic.Label</p><p class="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">@statistic.Value.ToString("N0")</p></div></div>
+    }
+</section>
+<section aria-labelledby="recent-checkins-heading" class="panel">
+    <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-5 sm:px-7"><div><h2 id="recent-checkins-heading" class="text-lg font-semibold">Recent check-ins</h2><p class="mt-1 text-sm text-slate-500">The latest entries recorded at your club.</p></div><a class="text-link text-sm" asp-controller="Visits" asp-action="Index">View all check-ins</a></div>
+    <partial name="_VisitTable" model="Model.RecentVisits" />
+</section>

@@ -1,0 +1,36 @@
+@model CustomerDetailsViewModel
+@{ ViewData["Title"] = Model.DisplayName; }
+<a class="text-link mb-5 inline-block text-sm" asp-action="Index">← All customers</a>
+<div class="mb-7 flex flex-wrap items-start justify-between gap-4">
+    <div><h1 class="page-heading break-words">@Model.DisplayName</h1><p class="page-description">Customer profile and membership passes.</p></div>
+    <a class="btn btn-secondary" asp-action="Purchase" asp-route-id="@Model.Id"><partial name="_Icon" model='@("card")' /> Sell a pass</a>
+</div>
+<div class="grid items-start gap-6 xl:grid-cols-3">
+    <aside class="panel xl:col-span-1" aria-label="Customer information">
+        <div class="panel-body">
+            <div class="mb-5 flex size-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-500"><partial name="_Icon" model='@("user")' /></div>
+            <h2 class="text-lg font-semibold">Personal information</h2>
+            <dl class="mt-5 space-y-5 text-sm">
+                <div><dt class="text-slate-500">Full name</dt><dd class="mt-1 break-words font-medium">@(string.IsNullOrWhiteSpace(Model.FullName) ? "Not provided" : Model.FullName)</dd></div>
+                <div><dt class="text-slate-500">Email address</dt><dd class="mt-1 break-all font-medium"><a href="mailto:@Model.Email">@Model.Email</a></dd></div>
+                <div><dt class="text-slate-500">Date of birth</dt><dd class="mt-1 font-medium">@(Model.DateOfBirth?.ToString("dd MMM yyyy", System.Globalization.CultureInfo.InvariantCulture) ?? "Not provided")</dd></div>
+                <div><dt class="text-slate-500">Customer ID</dt><dd class="mt-1 font-medium">#@Model.Id</dd></div>
+            </dl>
+        </div>
+    </aside>
+    <section class="space-y-4 xl:col-span-2" aria-labelledby="customer-passes-heading">
+        <div class="flex items-center justify-between"><h2 id="customer-passes-heading" class="text-lg font-semibold">Membership passes</h2><span class="text-sm text-slate-500">@Model.Passes.Count total</span></div>
+        @if (Model.Passes.Count == 0)
+        {
+            <div class="panel empty-state"><h3 class="font-semibold">No passes purchased</h3><p class="mt-2 text-sm text-slate-500">This customer doesn’t have a membership pass yet.</p></div>
+        }
+        @foreach (var pass in Model.Passes)
+        {
+            <partial name="_CustomerPass" model="pass" />
+        }
+    </section>
+</div>
+<section class="panel mt-8" aria-labelledby="customer-history-heading">
+    <div class="px-5 py-5 sm:px-7"><h2 id="customer-history-heading" class="text-lg font-semibold">Recent visits</h2><p class="mt-1 text-sm text-slate-500">The last ten recorded entries.</p></div>
+    <partial name="_VisitTable" model="Model.RecentVisits" />
+</section>

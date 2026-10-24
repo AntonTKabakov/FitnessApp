@@ -1,0 +1,6 @@
+@import "tailwindcss" source(none);
+@import "./components.css";
+
+/* Paths are relative to this stylesheet, independent of the shell's directory. */
+@source "../Views/**/*.cshtml";
+@source "../wwwroot/js/**/*.js";

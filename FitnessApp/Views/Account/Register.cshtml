@@ -1,0 +1,57 @@
+@model FitnessApp.ViewModels.RegisterViewModel
+@{
+    ViewData["Title"] = "Create an account";
+    ViewData["Subtitle"] = "Manage your passes and track your visits.";
+    var latestBirthDate = ReceptionTime.Today.AddYears(-14).ToString("yyyy-MM-dd");
+}
+
+<div class="mx-auto w-full max-w-lg py-4 sm:py-10">
+    <div class="mb-6">
+        <h1 class="page-heading">Create an account</h1>
+        <p class="page-description">Manage your passes and track your visits.</p>
+    </div>
+    <section class="panel" aria-label="Registration form">
+        <div class="panel-body">
+            <form asp-controller="Account" asp-action="Register" method="post" class="space-y-5">
+                <input asp-for="ReturnUrl" type="hidden" />
+                <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div>
+                <div>
+                    <label asp-for="FullName" class="label"></label>
+                    <input asp-for="FullName" class="input" autocomplete="name" maxlength="50" required aria-describedby="name-error" />
+                    <span asp-validation-for="FullName" class="field-error" id="name-error"></span>
+                </div>
+                <div>
+                    <label asp-for="Email" class="label"></label>
+                    <input asp-for="Email" class="input" autocomplete="email" inputmode="email" maxlength="100" required aria-describedby="email-error" />
+                    <span asp-validation-for="Email" class="field-error" id="email-error"></span>
+                </div>
+                <div>
+                    <label asp-for="DateOfBirth" class="label"></label>
+                    <input asp-for="DateOfBirth" class="input" autocomplete="bday" max="@latestBirthDate" required aria-describedby="birth-hint birth-error" />
+                    <p class="mt-1 text-xs text-slate-500" id="birth-hint">You must be at least 14 years old.</p>
+                    <span asp-validation-for="DateOfBirth" class="field-error" id="birth-error"></span>
+                </div>
+                <div>
+                    <label asp-for="Password" class="label"></label>
+                    <input asp-for="Password" class="input" autocomplete="new-password" minlength="8" maxlength="128" required aria-describedby="password-hint password-error" />
+                    <p class="mt-1 text-xs text-slate-500" id="password-hint">Use between 8 and 128 characters.</p>
+                    <span asp-validation-for="Password" class="field-error" id="password-error"></span>
+                </div>
+                <div>
+                    <label asp-for="ConfirmPassword" class="label"></label>
+                    <input asp-for="ConfirmPassword" class="input" autocomplete="new-password" maxlength="128" required aria-describedby="confirm-error" />
+                    <span asp-validation-for="ConfirmPassword" class="field-error" id="confirm-error"></span>
+                </div>
+                <button type="submit" class="btn btn-primary w-full">Create account</button>
+            </form>
+            <p class="mt-6 text-center text-sm text-slate-600">
+                Already registered?
+                <a asp-action="Login" asp-route-returnUrl="@Model.ReturnUrl" class="font-semibold text-emerald-700 underline-offset-4 hover:underline">Sign in</a>
+            </p>
+        </div>
+    </section>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

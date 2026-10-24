@@ -1,0 +1,5 @@
+@model FitnessApp.ViewModels.TrainerFormViewModel
+@{ ViewData["Title"] = "Add trainer"; }
+<div class="mb-8"><a asp-action="Index" class="mb-4 inline-block text-sm font-medium text-emerald-800 underline underline-offset-4">Back to trainers</a><h1 class="page-heading">Add trainer</h1><p class="page-description">Add a team member to your club's trainer directory.</p></div>
+<div class="panel max-w-2xl"><div class="panel-body"><partial name="_Form" model="Model" /></div></div>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

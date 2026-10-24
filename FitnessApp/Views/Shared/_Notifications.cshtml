@@ -1,0 +1,10 @@
+@foreach (var kind in new[] { "Success", "Error" })
+{
+    if (TempData[kind] is string message)
+    {
+        <div class="notice @(kind == "Success" ? "notice-success" : "notice-error") mb-6 flex items-start justify-between gap-4" role="@(kind == "Success" ? "status" : "alert")" data-notice>
+            <p>@message</p>
+            <button type="button" class="shrink-0 rounded p-1" data-dismiss-notice aria-label="Dismiss notification"><partial name="_Icon" model='@("close")' /></button>
+        </div>
+    }
+}

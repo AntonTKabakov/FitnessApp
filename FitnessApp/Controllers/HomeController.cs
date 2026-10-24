@@ -1,14 +1,17 @@
 using FitnessApp.Models;
 using Microsoft.AspNetCore.Mvc;
 using System.Diagnostics;
+using FitnessApp.Filters;
+using FitnessApp.Service;
 
 namespace FitnessApp.Controllers
 {
-    public class HomeController : Controller
+    [TypeFilter(typeof(DatabaseUnavailableFilter))]
+    public class HomeController(ReceptionQueryService queries) : Controller
     {
-        public IActionResult Index()
+        public async Task<IActionResult> Index(CancellationToken cancellationToken)
         {
-            return View();
+            return View(await queries.Dashboard(cancellationToken));
         }
 
         public IActionResult Privacy()

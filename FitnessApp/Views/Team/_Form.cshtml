@@ -1,0 +1,9 @@
+@model FitnessApp.ViewModels.TrainerFormViewModel
+<form asp-action="@(Model.Id.HasValue ? "Edit" : "Create")" asp-route-id="@Model.Id" method="post" class="space-y-6">
+    <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div>
+    @if (Model.Id.HasValue) { <input asp-for="Id" type="hidden" /> }
+    <div><label asp-for="FullName" class="label"></label><input asp-for="FullName" class="input" autocomplete="name" maxlength="100" required /><span asp-validation-for="FullName" class="field-error"></span></div>
+    <div><label asp-for="Specialty" class="label"></label><input asp-for="Specialty" class="input" maxlength="50" required /><span asp-validation-for="Specialty" class="field-error"></span></div>
+    <div><label asp-for="Phone" class="label"></label><input asp-for="Phone" class="input" type="tel" autocomplete="tel" maxlength="20" required /><span asp-validation-for="Phone" class="field-error"></span></div>
+    <div class="flex flex-wrap gap-3 border-t border-slate-200 pt-6"><button type="submit" class="btn btn-primary">@(Model.Id.HasValue ? "Save changes" : "Add trainer")</button><a asp-action="Index" class="btn btn-secondary">Cancel</a></div>
+</form>

@@ -1,0 +1,8 @@
+@model VisitRowViewModel
+<dl class="grid gap-6 text-sm sm:grid-cols-2">
+    <div><dt class="text-slate-500">Customer</dt><dd class="mt-2 break-words font-semibold"><a class="text-link" asp-controller="Customers" asp-action="Details" asp-route-id="@Model.CustomerId">@Model.DisplayName</a></dd></div>
+    <div><dt class="text-slate-500">Email</dt><dd class="mt-2 break-all font-medium">@Model.CustomerEmail</dd></div>
+    <div><dt class="text-slate-500">Membership pass</dt><dd class="mt-2 font-medium">@Model.PassName · #@Model.CustomerPassId</dd></div>
+    <div><dt class="text-slate-500">Date and time</dt><dd class="mt-2 font-medium">@Model.CheckedInAt.ToString("dd MMM yyyy · HH:mm", System.Globalization.CultureInfo.InvariantCulture)</dd></div>
+    <div><dt class="text-slate-500">Trainer</dt><dd class="mt-2 font-medium">@(Model.TrainerName ?? "Independent training")</dd></div>
+</dl>

@@ -1,0 +1,13 @@
+@model FitnessApp.ViewModels.PassFormViewModel
+@{ ViewData["Title"] = "Delete pass type"; }
+<div class="mb-8"><a asp-action="Index" class="mb-4 inline-block text-sm font-medium text-emerald-800 underline underline-offset-4">Back to gym passes</a><h1 class="page-heading">Delete pass type</h1><p class="page-description">Review the pass type before removing it from the catalog.</p></div>
+<section class="panel max-w-2xl" aria-label="Confirm pass deletion"><div class="panel-body"><partial name="_Summary" model="Model" />
+@if (Model.PurchasedCount > 0)
+{
+    <div class="notice notice-info mt-6" role="status">This pass type is used by customer passes and cannot be deleted.</div><a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-secondary mt-6">Back to pass details</a>
+}
+else
+{
+    <div class="notice notice-error mt-6">Deleting this pass type is permanent.</div><form asp-action="Delete" asp-route-id="@Model.Id" method="post" class="mt-6 flex flex-wrap gap-3"><button type="submit" class="btn btn-danger">Delete pass type</button><a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-secondary">Cancel</a></form>
+}
+</div></section>

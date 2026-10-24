@@ -1,0 +1,24 @@
+@model CustomerPassViewModel
+<article class="rounded-2xl border p-5 sm:p-6 @(Model.IsActive ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-slate-100")">
+    <div class="flex flex-wrap items-start justify-between gap-3">
+        <div><p class="mb-1 text-xs font-medium text-slate-500">Pass #@Model.Id</p><h3 class="text-lg font-semibold">@Model.Name</h3></div>
+        <span class="badge @(Model.IsActive ? "badge-success" : "badge-danger")">@Model.Status</span>
+    </div>
+    <dl class="my-5 grid grid-cols-2 gap-5 text-sm sm:grid-cols-3">
+        <div><dt class="text-slate-600">Visits remaining</dt><dd class="mt-1 text-2xl font-bold @(Model.IsActive ? "text-emerald-900" : "text-slate-700")">@Model.RemainingVisits <span class="text-sm font-normal text-slate-500">/ @Model.MaxVisits</span></dd></div>
+        <div><dt class="text-slate-600">Valid until</dt><dd class="mt-2 font-semibold">@Model.Expires.ToString("dd MMM yyyy", System.Globalization.CultureInfo.InvariantCulture)</dd></div>
+        <div><dt class="text-slate-600">Purchased</dt><dd class="mt-2 font-semibold">@Model.Purchased.ToString("dd MMM yyyy", System.Globalization.CultureInfo.InvariantCulture)</dd></div>
+    </dl>
+    @if (Model.IsActive && !Model.CheckedInToday)
+    {
+        <a class="btn btn-primary" asp-controller="Visits" asp-action="Create" asp-route-passId="@Model.Id"><partial name="_Icon" model='@("check")' /> Check in</a>
+    }
+    else if (Model.CheckedInToday)
+    {
+        <p class="text-sm font-medium text-emerald-800">Already checked in today.</p>
+    }
+    else
+    {
+        <p class="text-sm text-red-800">This pass cannot be used to enter the club.</p>
+    }
+</article>

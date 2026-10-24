@@ -1,0 +1,24 @@
+@model FitnessApp.ViewModels.CatalogListViewModel<FitnessApp.ViewModels.TrainerFormViewModel>
+@{ ViewData["Title"] = "Trainers"; }
+<div class="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div><h1 class="page-heading">Trainers</h1><p class="page-description">Manage the team and their contact details.</p></div><a asp-action="Create" class="btn btn-primary">Add trainer</a></div>
+<section class="panel" aria-label="Trainer directory">
+    <form asp-action="Index" method="get" class="flex flex-col gap-3 border-b border-slate-200 p-5 sm:flex-row sm:items-end"><div class="flex-1"><label for="trainer-search" class="label">Find a trainer</label><input id="trainer-search" name="search" value="@Model.Search" type="search" class="input" placeholder="Name, specialty, or phone" maxlength="100" /></div><button class="btn btn-secondary" type="submit">Search</button>@if (!string.IsNullOrEmpty(Model.Search)) { <a asp-action="Index" class="btn btn-secondary">Clear</a> }</form>
+    @if (Model.Error is not null)
+    {
+        <div class="panel-body"><div class="notice notice-error" role="alert">@Model.Error</div><a asp-action="Index" asp-route-search="@Model.Search" class="btn btn-secondary mt-4">Try again</a></div>
+    }
+    else if (Model.Items.Count == 0)
+    {
+        <div class="px-6 py-14 text-center"><h2 class="text-lg font-semibold text-slate-900">@(string.IsNullOrEmpty(Model.Search) ? "No trainers yet" : "No matching trainers")</h2><p class="mt-2 text-slate-600">@(string.IsNullOrEmpty(Model.Search) ? "Add your club's team so a trainer can be selected when checking in." : "Try another name, specialty, or phone number.")</p><a asp-action="Create" class="btn btn-primary mt-5">Add trainer</a></div>
+    }
+    else
+    {
+        <div class="table-wrap"><table class="data-table"><caption class="sr-only">Trainers, specialties, and contact details</caption><thead><tr><th scope="col">Trainer</th><th scope="col">Specialty</th><th scope="col">Phone</th><th scope="col">Actions</th></tr></thead><tbody>
+        @foreach (var trainer in Model.Items)
+        {
+            <tr><th scope="row"><a asp-action="Details" asp-route-id="@trainer.Id" class="font-semibold text-slate-900 underline decoration-slate-300 underline-offset-4">@trainer.FullName</a></th><td>@trainer.Specialty</td><td><a href="tel:@trainer.Phone" class="underline decoration-slate-300 underline-offset-4">@trainer.Phone</a></td><td><div class="flex flex-wrap gap-4"><a asp-action="Edit" asp-route-id="@trainer.Id" class="font-medium text-emerald-800 underline underline-offset-4" aria-label="Edit @trainer.FullName">Edit</a><a asp-action="Delete" asp-route-id="@trainer.Id" class="font-medium text-red-700 underline underline-offset-4" aria-label="Delete @trainer.FullName">Delete</a></div></td></tr>
+        }
+        </tbody></table></div>
+        <nav class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-5 py-4" aria-label="Trainer directory pages"><p class="text-sm text-slate-600">@Model.Total trainer(s) · Page @Model.Page of @Model.TotalPages</p><div class="flex gap-2">@if (Model.Page > 1) { <a asp-action="Index" asp-route-search="@Model.Search" asp-route-page="@(Model.Page - 1)" class="btn btn-secondary" rel="prev">Previous</a> }@if (Model.Page < Model.TotalPages) { <a asp-action="Index" asp-route-search="@Model.Search" asp-route-page="@(Model.Page + 1)" class="btn btn-secondary" rel="next">Next</a> }</div></nav>
+    }
+</section>

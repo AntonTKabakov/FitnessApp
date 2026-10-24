@@ -1,0 +1,26 @@
+@model IReadOnlyCollection<VisitRowViewModel>
+@if (Model.Count == 0)
+{
+    <div class="empty-state"><p class="font-semibold text-slate-800">No check-ins found</p><p class="mt-2 text-sm text-slate-500">Confirmed entries will appear here.</p></div>
+}
+else
+{
+    <div class="table-wrap" tabindex="0" role="region" aria-label="Check-ins table">
+        <table class="data-table min-w-160">
+            <caption class="sr-only">Recorded check-ins with customer, pass, time, and trainer</caption>
+            <thead><tr><th scope="col">Customer</th><th scope="col">Pass</th><th scope="col">Date &amp; time</th><th scope="col">Trainer</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+                @foreach (var visit in Model)
+                {
+                    <tr>
+                        <td><a class="font-semibold text-slate-900 hover:text-emerald-800" asp-controller="Customers" asp-action="Details" asp-route-id="@visit.CustomerId">@visit.DisplayName</a><p class="mt-1 text-xs text-slate-500">@visit.CustomerEmail</p></td>
+                        <td>@visit.PassName</td>
+                        <td class="whitespace-nowrap"><time datetime="@visit.CheckedInAt.ToString("yyyy-MM-ddTHH:mm:ss")">@visit.CheckedInAt.ToString("dd MMM yyyy · HH:mm", System.Globalization.CultureInfo.InvariantCulture)</time></td>
+                        <td>@(visit.TrainerName ?? "Independent training")</td>
+                        <td><a class="text-link" asp-controller="Visits" asp-action="Details" asp-route-id="@visit.Id" aria-label="View check-in for @visit.DisplayName">View</a></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

@@ -1,0 +1,10 @@
+@model UnavailableViewModel
+@{ ViewData["Title"] = "Temporarily unavailable"; }
+<div class="panel mx-auto max-w-xl">
+    <div class="panel-body py-12 text-center">
+        <span class="badge badge-danger">Temporarily unavailable</span>
+        <h1 class="page-heading mt-5">We couldn’t load your data</h1>
+        <p class="page-description">The database is unavailable. Please try again, or contact your administrator if the problem continues.</p>
+        <div class="mt-7 flex flex-wrap justify-center gap-3"><a class="btn btn-primary" href="@Model.ReturnUrl">Try again</a><a class="btn btn-secondary" asp-controller="Home" asp-action="Index">Dashboard</a></div>
+    </div>
+</div>
