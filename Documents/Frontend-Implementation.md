@@ -18,7 +18,7 @@ New MVC controllers use distinct names so the existing API action signatures and
 | `/Customers` | Search by name/email and paginated customer results. |
 | `/Customers/Details/{id}` | Customer information, purchased passes with validity states, and recent visits. |
 | `/Customers/Create` | Explains that receptionist customer creation is unavailable; no customer is created. |
-| `/Customers/Purchase/{id}` | Membership-sale presentation with an explicit unavailable state; no purchase or payment is submitted. |
+| `/Customers/Purchase/{id}` | GET shows the real pass catalog; antiforgery-protected POST assigns the selected type to the customer and redirects to their profile. |
 | `/Visits` | Searchable, date-filtered, paginated check-in history. |
 | `/Visits/Create` | Select an existing valid customer pass and an optional trainer, then confirm entry through `ICheckinService`. |
 | `/Visits/Details/{id}` | A recorded visit and related customer, pass, and trainer. |
@@ -35,6 +35,8 @@ Existing `/Trainers`, `/Gympass`, and `/Checkin` API controllers continue to exp
 `ReceptionQueryService` supplies asynchronous, read-only projections from the existing `AppDbContext`. The original collection DTOs omit identifiers and some display fields, so those API responses are not sufficient for linked MVC lists. Projection queries retrieve real database records, use stable ordering and bounded pagination, and do not expose password hashes or token data.
 
 The pass and trainer MVC controllers similarly use asynchronous EF read projections while routing mutations through `IGympassService` and `ITrainerService`. Forms enforce the documented positive validity/visit limits, nonnegative prices, database field lengths, unique pass names, and unique trainer phones. Referenced pass types and trainers cannot be deleted through these screens.
+
+`ICustomerPassService` and `CustomerPassService` now implement the documented membership assignment rules using the existing customer-pass table: purchase date is today in Europe/Sofia, expiry is today plus the selected type's validity days, and remaining visits equals its maximum visits. Only the customer route ID and selected type ID are accepted as inputs; limits and dates are read/calculated on the server. Missing customers/types, invalid catalog limits, and date overflow are rejected. The form assigns a membership and does not process or claim to record payment. Existing check-in rules immediately recognize the resulting pass.
 
 Check-in views remain under `Views/Checkin`, rendered by the new `VisitsController`. The existing check-in update API permits pass reassignment without reconciling visit balances. The MVC edit form therefore changes the trainer only and reloads the pass and original timestamp from the database. Check-in creation and cancellation retain the existing service's pass-validation and visit-balance behavior.
 
@@ -56,12 +58,12 @@ Reception date labels use `Europe/Sofia`. The original check-in service still st
 | --- | --- |
 | Customer phone and phone search | The current `User`/customer entity has no phone field. Customer search uses the persisted name and email. Adding phone requires a separately reviewed data/service change. |
 | Receptionist customer creation/editing | There is no dedicated customer-management service. Existing account registration signs in the new account, so it is presented as self-registration rather than silently replacing the receptionist's session. |
-| Pass sales, renewals, and payment | Purchased-pass entities exist, but no purchase/renewal/payment service exists. The sale screen has an explicit unavailable state; no payment API or transaction is invented. |
+| Existing-pass extensions and payment | Assigning new memberships is supported. Extending an existing pass and collecting/recording payment remain outside this workflow. No payment API is added. |
 | Live active workouts | The system records entry timestamps but has no exit/session-lifecycle data. The dashboard reports today's trainer-assisted visits rather than claiming to count active workouts. |
 | Staff/admin roles | The existing user model and JWT contain no staff/role permissions, and the original management API controllers are unauthenticated. This frontend preserves that behavior and does not claim to implement staff authorization. |
 | Exact Figma fidelity | Figma access is still required to confirm exact screens, assets, type, spacing, and responsive specifications. The approved document fallback is the implemented visual source. |
 
-No database schema, migrations, payment integration, customer phone field, role model, or replacement business service was added as part of this frontend work.
+No database schema, migrations, payment integration, customer phone field, or role model was changed. Customer pass assignment is an additive service using the existing entities.
 
 ## Significant file changes
 
@@ -87,3 +89,5 @@ Completed verification on 27 October 2026:
 Local test reports and screenshots are under ignored `artifacts/mvc-verification` and `artifacts/browser-final`. The integration script includes a guarded `-Cleanup` command for its recorded temporary database and server. Build/run and verification commands are documented in [Frontend build](Frontend-Build.md).
 
 Exact Figma comparison remains unavailable because the design was not accessible. An additional database-outage injection command was rejected by automatic approval review without a detailed reason, so that specific failure-state test was not executed.
+
+The customer-pass follow-up adds ten integration assertions (66/66 passed), covering antiforgery, required selection, unknown customer/type rejection, server-owned values and dates, date overflow, visibility in check-in, and the first entry's visit deduction. Nine additional browser checks passed across the assignment form, assigned customer's profile, and check-in screen at desktop/tablet/mobile widths, with no console errors or horizontal overflow. Screenshots and the browser report are under ignored `artifacts/browser-assignment`. A separately built output under `artifacts/assignment-build` was used because the user's running app locked the default executable. Restart the local application after rebuilding to load the feature.

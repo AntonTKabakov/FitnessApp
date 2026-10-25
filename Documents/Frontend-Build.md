@@ -64,6 +64,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/verify-mvc.ps1 -Cl
 
 Override `-PostgresBin` if PostgreSQL is installed outside
 `C:\Program Files\PostgreSQL\18\bin`; use `-Port` to select a free test port.
+Use `-BuildDirectory artifacts/assignment-build` to verify a separately built
+application when the default Debug output is locked by a running local app.
 The suite reads the development connection locally, exports only its schema,
 and creates a separate `fitnessapp_ui_verify_<random>` database containing
 synthetic fixtures. Existing application data is never imported or modified.
@@ -76,7 +78,7 @@ that it owns that listener before sending any form or API mutations.
 Checks cover antiforgery enforcement, account registration and session rotation,
 server-side validation, pass and trainer CRUD, historical-record deletion guards,
 check-in balance changes and duplicate denial, customer search and pagination,
-and existing API routes. Results and the exact database/process IDs are written
+customer membership assignment and its first check-in, and existing API routes. Results and the exact database/process IDs are written
 to ignored `artifacts/mvc-verification/state.json`. Cleanup validates the recorded
 database name and server process before stopping it and dropping only that test
 database. Run cleanup before starting another verification run.

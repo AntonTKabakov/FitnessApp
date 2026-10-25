@@ -2,6 +2,7 @@
 param(
     [ValidateRange(1024, 65535)][int]$Port = 5291,
     [string]$PostgresBin = 'C:\Program Files\PostgreSQL\18\bin',
+    [string]$BuildDirectory = 'FitnessApp/bin/Debug/net10.0',
     [switch]$Cleanup
 )
 
@@ -149,7 +150,7 @@ VALUES (401, 301, CURRENT_TIMESTAMP - INTERVAL '1 day', 201);
     $env:ASPNETCORE_ENVIRONMENT = 'Development'
     $env:AuthCookie__Secure = 'false'
     $env:AuthCookie__SameSite = 'Lax'
-    $taskBuiltApp = Join-Path $taskRoot 'FitnessApp/bin/Debug/net10.0'
+    $taskBuiltApp = if ([IO.Path]::IsPathRooted($BuildDirectory)) { $BuildDirectory } else { Join-Path $taskRoot $BuildDirectory }
     if (-not (Test-Path -LiteralPath (Join-Path $taskBuiltApp 'FitnessApp.dll'))) { throw 'Build the Debug application before running verification.' }
     $taskSnapshot = Join-Path $taskRunDirectory 'app'
     New-Item -ItemType Directory -Path $taskSnapshot | Out-Null
@@ -282,6 +283,28 @@ VALUES (401, 301, CURRENT_TIMESTAMP - INTERVAL '1 day', 201);
     Assert-Verification 'Existing auth refresh API still works' ((Send-VerificationRequest $taskApiClient POST '/auth/refresh').Status -eq 200)
     Assert-Verification 'Existing auth logout API still works' ((Send-VerificationRequest $taskApiClient DELETE '/auth/session').Status -eq 204)
     $taskApiClient.Dispose()
+
+    $taskResponse = Send-VerificationRequest $taskClient POST '/Customers/Purchase/1026' @{ PassTypeId = '102' }
+    Assert-Verification 'Customer pass assignment requires antiforgery' ($taskResponse.Status -eq 400)
+    $taskResponse = Submit-VerificationForm $taskClient '/Customers/Purchase/1026' '/Customers/Purchase/1026' @{ PassTypeId = '' }
+    Assert-Verification 'Customer pass assignment requires a selected type' ($taskResponse.Status -eq 200 -and $taskResponse.Html -match 'field-validation-error')
+    $taskResponse = Submit-VerificationForm $taskClient '/Customers/Purchase/1026' '/Customers/Purchase/1026' @{ PassTypeId = '999999' }
+    Assert-Verification 'Unknown pass type is rejected without a membership' ($taskResponse.Status -eq 200 -and (Invoke-VerificationSql $taskDatabase 'SELECT count(*) FROM customerpasses WHERE customerid = 1026;') -eq '0')
+    $taskResponse = Submit-VerificationForm $taskClient '/Customers/Purchase/1026' '/Customers/Purchase/1026' @{ PassTypeId = '102'; CustomerId = '1001'; RemainingVisits = '999'; Expirydate = '2099-01-01' }
+    Assert-Verification 'Customer pass assignment redirects to the customer profile' ($taskResponse.Status -eq 302 -and $taskResponse.Location -eq '/Customers/Details/1026')
+    $taskAssignedPassId = Invoke-VerificationSql $taskDatabase 'SELECT customerpassid FROM customerpasses WHERE customerid = 1026 ORDER BY customerpassid DESC LIMIT 1;'
+    Assert-Verification 'Assigned membership uses route customer and catalog visit allowance' ((Invoke-VerificationSql $taskDatabase "SELECT customerid || ',' || passtypeid || ',' || remainingvisits FROM customerpasses WHERE customerpassid = $taskAssignedPassId;") -eq '1026,102,1')
+    Assert-Verification 'Purchase and expiry dates come from the server and catalog' ((Invoke-VerificationSql $taskDatabase "SELECT count(*) FROM customerpasses WHERE customerpassid = $taskAssignedPassId AND purchasedate = CURRENT_DATE AND expirydate = CURRENT_DATE + 1;") -eq '1')
+    $taskResponse = Send-VerificationRequest $taskClient GET "/Visits/Create?passId=$taskAssignedPassId"
+    Assert-Verification 'Newly assigned pass appears in check-in selection' ($taskResponse.Status -eq 200 -and $taskResponse.Html.Contains(('id="pass-' + $taskAssignedPassId + '"')) -and $taskResponse.Html -match 'Day Entry')
+    $taskResponse = Submit-VerificationForm $taskClient "/Visits/Create?passId=$taskAssignedPassId" '/Visits/Create' @{ CustomerPassId = $taskAssignedPassId; TrainerId = '' }
+    Assert-Verification 'Newly assigned pass can check in and deduct its visit' ($taskResponse.Status -eq 302 -and (Invoke-VerificationSql $taskDatabase "SELECT remainingvisits FROM customerpasses WHERE customerpassid = $taskAssignedPassId;") -eq '0')
+    $taskResponse = Submit-VerificationForm $taskClient '/Customers/Purchase/1026' '/Customers/Purchase/999999' @{ PassTypeId = '102' }
+    Assert-Verification 'Unknown customer cannot receive a pass' ($taskResponse.Status -eq 404)
+    Invoke-VerificationSql $taskDatabase "INSERT INTO gympasses (passtypeid, passname, price, maxvisits, validitydays) VALUES (104, 'Invalid date limit', 1, 1, 2147483647);" | Out-Null
+    $taskResponse = Submit-VerificationForm $taskClient '/Customers/Purchase/1026' '/Customers/Purchase/1026' @{ PassTypeId = '104' }
+    Assert-Verification 'Invalid catalog validity cannot overflow the expiry date' ($taskResponse.Status -eq 200 -and (Invoke-VerificationSql $taskDatabase 'SELECT count(*) FROM customerpasses WHERE passtypeid = 104;') -eq '0')
+    Invoke-VerificationSql $taskDatabase 'DELETE FROM gympasses WHERE passtypeid = 104;' | Out-Null
 
     # Leave realistic active, expired, exhausted and recent-visit states for browser verification.
     $taskResponse = Submit-VerificationForm $taskClient '/Visits/Create?passId=301' '/Visits/Create' @{ CustomerPassId = '301'; TrainerId = '201' }
