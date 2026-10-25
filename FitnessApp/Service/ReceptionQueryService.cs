@@ -100,6 +100,20 @@ public class ReceptionQueryService(AppDbContext db)
         };
     }
 
+    public async Task<PurchasePassViewModel?> Purchase(int customerId, CancellationToken ct)
+    {
+        var model = await db.Customers.AsNoTracking().Where(x => x.Id == customerId)
+            .Select(x => new PurchasePassViewModel { CustomerId = x.Id, CustomerName = x.Fullname == "" ? x.Email : x.Fullname })
+            .SingleOrDefaultAsync(ct);
+        if (model == null) return null;
+        model.PassTypes = await db.Gympasses.AsNoTracking().OrderBy(x => x.Passname).ThenBy(x => x.Passtypeid)
+            .Select(x => new PurchasePassOptionViewModel
+            {
+                Id = x.Passtypeid, Name = x.Passname, Price = x.Price, Visits = x.Maxvisits, ValidityDays = x.Validitydays
+            }).ToListAsync(ct);
+        return model;
+    }
+
     public Task<VisitRowViewModel?> Visit(int id, CancellationToken ct) => db.Checkins.AsNoTracking()
         .Where(x => x.Checkinid == id).Select(VisitProjection).SingleOrDefaultAsync(ct);
 

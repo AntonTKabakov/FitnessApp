@@ -1,11 +1,37 @@
-@model CustomerDetailsViewModel
+﻿@model PurchasePassViewModel
 @{ ViewData["Title"] = "Sell a pass"; }
-<a class="text-link mb-5 inline-block text-sm" asp-action="Details" asp-route-id="@Model.Id">← Customer profile</a>
+<a class="text-link mb-5 inline-block text-sm" asp-action="Details" asp-route-id="@Model.CustomerId">&larr; Customer profile</a>
 <h1 class="page-heading">Sell a pass</h1>
-<p class="page-description mb-7">A new membership for @Model.DisplayName.</p>
-<div class="panel max-w-2xl"><div class="panel-body">
-    <span class="badge badge-neutral">Not available yet</span>
-    <h2 class="mt-5 text-lg font-semibold">Pass sales need to be connected</h2>
-    <p class="mt-3 text-sm leading-7 text-slate-600">Purchasing and renewing customer passes is not available in this application yet. Existing passes and remaining visits can still be viewed in the customer profile.</p>
-    <div class="mt-6 flex flex-wrap gap-3"><a class="btn btn-secondary" asp-controller="Passes" asp-action="Index">View pass types</a><button class="btn btn-primary" type="button" disabled>Confirm purchase</button></div>
+<p class="page-description mb-7">Assign a new membership to @Model.CustomerName.</p>
+<div class="panel max-w-3xl"><div class="panel-body">
+    @if (Model.PassTypes.Count == 0)
+    {
+        <h2 class="text-lg font-semibold">Add a pass type first</h2>
+        <p class="mt-3 text-sm text-slate-600">Create a pass type with a price, visit allowance, and validity period before assigning it to a customer.</p>
+        <a class="btn btn-primary mt-6" asp-controller="Passes" asp-action="Create">Add pass type</a>
+    }
+    else
+    {
+        <form asp-action="Purchase" asp-route-id="@Model.CustomerId" method="post" class="space-y-6">
+            <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div>
+            <fieldset>
+                <legend class="label">Choose a pass type</legend>
+                <p id="pass-type-help" class="mb-4 text-sm text-slate-600">Validity starts today. Visits and the expiry date are set automatically from the selected pass type.</p>
+                <span asp-validation-for="PassTypeId" class="field-error mb-3" id="pass-type-error"></span>
+                <div class="space-y-3">
+                    @foreach (var pass in Model.PassTypes)
+                    {
+                        <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-4 has-checked:border-emerald-600 has-checked:bg-emerald-50">
+                            <input asp-for="PassTypeId" id="pass-type-@pass.Id" type="radio" value="@pass.Id" required class="mt-1 size-5 shrink-0 accent-emerald-700" aria-describedby="pass-type-help pass-type-error" />
+                            <span class="min-w-0 flex-1"><span class="block break-words font-semibold">@pass.Name</span><span class="mt-2 block text-sm text-slate-600">@pass.Visits visits &middot; @pass.ValidityDays days</span></span>
+                            <span class="shrink-0 font-semibold">@pass.Price.ToString("0.00")</span>
+                        </label>
+                    }
+                </div>
+            </fieldset>
+            <p class="notice notice-info">Confirming assigns the membership to this customer. Payment collection is handled separately; this form does not process a payment.</p>
+            <div class="flex flex-wrap gap-3"><button class="btn btn-primary" type="submit">Confirm and assign pass</button><a class="btn btn-secondary" asp-action="Details" asp-route-id="@Model.CustomerId">Cancel</a></div>
+        </form>
+    }
 </div></div>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

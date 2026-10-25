@@ -29,6 +29,7 @@ builder.Services.AddScoped<ITrainerService, TrainerService>();
 builder.Services.AddScoped<IGympassService, GympassService>();
 builder.Services.AddScoped<ICheckinService, CheckinService>();
 builder.Services.AddScoped<ReceptionQueryService>();
+builder.Services.AddScoped<ICustomerPassService, CustomerPassService>();
 
 // Authentication services
 var jwtSettings = JwtSettings.FromConfiguration(

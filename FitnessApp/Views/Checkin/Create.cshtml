@@ -18,7 +18,10 @@
                 <span asp-validation-for="CustomerPassId" class="field-error" id="pass-error"></span>
                 @if (Model.Passes.Count == 0)
                 {
-                    <div class="notice notice-error" role="status">No valid passes with visits remaining were found. Search for another customer or check their membership.</div>
+                    <div class="notice notice-info" role="status">
+                        <p>No valid customer passes with visits remaining were found. Pass types must be assigned to a customer before they can be used for check-in.</p>
+                        <a class="text-link mt-3 inline-block" asp-controller="Customers" asp-action="Index">Find a customer and assign a pass</a>
+                    </div>
                 }
                 <div class="max-h-96 space-y-3 overflow-y-auto p-1">
                     @foreach (var pass in Model.Passes)
