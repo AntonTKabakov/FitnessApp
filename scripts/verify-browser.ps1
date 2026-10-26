@@ -3,7 +3,9 @@ param(
     [string]$BaseUrl = 'http://localhost:5290',
     [string[]]$Paths = @('/', '/Account/Login', '/Account/Register'),
     [string]$OutputDirectory,
-    [string]$BrowserPath
+    [string]$BrowserPath,
+    [string]$LoginEmail,
+    [string]$LoginPassword
 )
 
 # Read-only browser checks: no forms are submitted and no application records are changed.
@@ -183,6 +185,18 @@ try {
     } finally { $taskCancellation.Dispose() }
     foreach ($taskDomain in @('Page.enable', 'Runtime.enable', 'Log.enable', 'Network.enable')) {
         Invoke-Cdp $taskDomain | Out-Null
+    }
+    if ($LoginEmail) {
+        if (-not $LoginPassword) { throw 'Supply LoginPassword with LoginEmail for an authenticated browser check.' }
+        $taskLoginBody = @{ Email = $LoginEmail; Password = $LoginPassword } | ConvertTo-Json -Compress
+        Invoke-RestMethod -Uri ([Uri]::new($taskBaseUri, '/auth/login')) -Method Post -ContentType 'application/json' -Body $taskLoginBody -SessionVariable taskBrowserSession | Out-Null
+        foreach ($taskCookie in $taskBrowserSession.Cookies.GetCookies($taskBaseUri)) {
+            $taskCookieParameters = @{
+                name = $taskCookie.Name; value = $taskCookie.Value; url = $taskBaseUri.AbsoluteUri
+                path = $taskCookie.Path; httpOnly = $taskCookie.HttpOnly; secure = $taskCookie.Secure
+            }
+            Invoke-Cdp 'Network.setCookie' $taskCookieParameters | Out-Null
+        }
     }
 
     $taskViewports = @(

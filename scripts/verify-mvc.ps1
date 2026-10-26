@@ -137,12 +137,12 @@ INSERT INTO gympasses (passtypeid, passname, price, maxvisits, validitydays) VAL
 INSERT INTO trainers (trainerid, fullname, specialty, phone) VALUES
 (201, 'Elena Dimitrova', 'Strength training', '+359888100201'), (202, 'Boris Petrov', 'Mobility', '+359888100202');
 INSERT INTO customerpasses (customerpassid, customerid, passtypeid, purchasedate, expirydate, remainingvisits) VALUES
-(301, 1001, 101, CURRENT_DATE - 2, CURRENT_DATE + 28, 12),
-(302, 1002, 101, CURRENT_DATE - 40, CURRENT_DATE - 10, 5),
-(303, 1003, 103, CURRENT_DATE - 10, CURRENT_DATE + 50, 0),
-(304, 1004, 101, CURRENT_DATE - 2, CURRENT_DATE + 28, 12);
+(301, 1001, 101, (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Sofia')::date - 2, (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Sofia')::date + 28, 12),
+(302, 1002, 101, (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Sofia')::date - 40, (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Sofia')::date - 10, 5),
+(303, 1003, 103, (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Sofia')::date - 10, (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Sofia')::date + 50, 0),
+(304, 1004, 101, (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Sofia')::date - 2, (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Sofia')::date + 28, 12);
 INSERT INTO checkins (checkinid, customerpassid, checkindatetime, trainerid)
-VALUES (401, 301, CURRENT_TIMESTAMP - INTERVAL '1 day', 201);
+VALUES (401, 301, (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Sofia') - INTERVAL '1 day', 201);
 '@
     Invoke-VerificationSql $taskDatabase $taskFixtureSql | Out-Null
     $taskConnection['Database'] = $taskDatabase
@@ -164,7 +164,7 @@ VALUES (401, 301, CURRENT_TIMESTAMP - INTERVAL '1 day', 201);
     $taskClient = New-VerificationClient
     $taskReady = $false
     for ($taskAttempt = 0; $taskAttempt -lt 40; $taskAttempt++) {
-        try { $taskReady = (Send-VerificationRequest $taskClient GET '/').Status -eq 200 } catch { }
+        try { $taskReady = (Send-VerificationRequest $taskClient GET '/Account/Login').Status -eq 200 } catch { }
         if ($taskReady) { break }
         if ($taskServer.HasExited) { throw 'The isolated verification server exited. See its local logs.' }
         Start-Sleep -Milliseconds 500
@@ -176,7 +176,7 @@ VALUES (401, 301, CURRENT_TIMESTAMP - INTERVAL '1 day', 201);
     }
 
     $taskResponse = Send-VerificationRequest $taskClient POST '/Passes/Create' @{ Name = 'No token'; Price = '1'; MaxVisits = '1'; ValidityDays = '1' }
-    Assert-Verification 'MVC mutation rejects missing antiforgery token' ($taskResponse.Status -eq 400)
+    Assert-Verification 'Anonymous MVC mutation is unauthorized' ($taskResponse.Status -eq 401)
     $taskPassword = 'Verification-Only-42!'
     $taskRegistration = @{ FullName = 'Verification Account'; Email = 'account@verification.invalid'; DateOfBirth = (Get-Date).AddYears(-10).ToString('yyyy-MM-dd'); Password = $taskPassword; ConfirmPassword = $taskPassword }
     $taskResponse = Submit-VerificationForm $taskClient '/Account/Register' '/Account/Register' $taskRegistration
@@ -186,16 +186,19 @@ VALUES (401, 301, CURRENT_TIMESTAMP - INTERVAL '1 day', 201);
     $taskResponse = Submit-VerificationForm $taskClient '/Account/Register' '/Account/Register' $taskRegistration
     Assert-Verification 'Valid registration redirects after creating account' ($taskResponse.Status -eq 302)
     Assert-Verification 'Registration stores a hashed password and refresh token' ((Invoke-VerificationSql $taskDatabase "SELECT count(*) FROM customers c JOIN refreshtokens r ON r.userid = c.customerid WHERE c.email = 'account@verification.invalid' AND c.password LIKE 'AQAAAA%';") -eq '1')
-    $taskResponse = Submit-VerificationForm $taskClient '/' '/Account/Refresh' @{ returnUrl = '/Customers' }
+    $taskResponse = Submit-VerificationForm $taskClient '/Member' '/Account/Refresh' @{ returnUrl = '/Customers' }
     Assert-Verification 'MVC refresh renews session and uses local return URL' ($taskResponse.Status -eq 302 -and $taskResponse.Location -eq '/Customers')
     Assert-Verification 'Refresh rotates rather than accumulating tokens' ((Invoke-VerificationSql $taskDatabase "SELECT count(*) FROM refreshtokens r JOIN customers c ON c.customerid = r.userid WHERE c.email = 'account@verification.invalid';") -eq '1')
-    $taskResponse = Submit-VerificationForm $taskClient '/' '/Account/Logout' @{}
+    $taskResponse = Submit-VerificationForm $taskClient '/Member' '/Account/Logout' @{}
     Assert-Verification 'MVC logout redirects to sign-in' ($taskResponse.Status -eq 302 -and $taskResponse.Location -eq '/Account/Login')
     Assert-Verification 'Logout removes the stored refresh token' ((Invoke-VerificationSql $taskDatabase "SELECT count(*) FROM refreshtokens r JOIN customers c ON c.customerid = r.userid WHERE c.email = 'account@verification.invalid';") -eq '0')
     $taskResponse = Submit-VerificationForm $taskClient '/Account/Login' '/Account/Login' @{ Email = 'account@verification.invalid'; Password = 'incorrect-password' }
     Assert-Verification 'Invalid MVC login renders validation' ($taskResponse.Status -eq 200 -and $taskResponse.Html -match 'Invalid email or password')
     $taskResponse = Submit-VerificationForm $taskClient '/Account/Login' '/Account/Login' @{ Email = 'account@verification.invalid'; Password = $taskPassword; ReturnUrl = 'https://example.invalid/redirect' }
     Assert-Verification 'Valid MVC login rejects external return URL' ($taskResponse.Status -eq 302 -and $taskResponse.Location -eq '/')
+    Assert-Verification 'New accounts default to User' ((Invoke-VerificationSql $taskDatabase "SELECT role FROM customers WHERE email = 'account@verification.invalid';") -eq 'User')
+    # Explicit fixture promotion; production registration cannot request an admin role.
+    Invoke-VerificationSql $taskDatabase "UPDATE customers SET role = 'Admin' WHERE email = 'account@verification.invalid';" | Out-Null
 
     $taskPassForm = @{ Name = 'Verification Pass'; Price = '75.50'; MaxVisits = '15'; ValidityDays = '45' }
     $taskResponse = Submit-VerificationForm $taskClient '/Passes/Create' '/Passes/Create' $taskPassForm
@@ -294,7 +297,7 @@ VALUES (401, 301, CURRENT_TIMESTAMP - INTERVAL '1 day', 201);
     Assert-Verification 'Customer pass assignment redirects to the customer profile' ($taskResponse.Status -eq 302 -and $taskResponse.Location -eq '/Customers/Details/1026')
     $taskAssignedPassId = Invoke-VerificationSql $taskDatabase 'SELECT customerpassid FROM customerpasses WHERE customerid = 1026 ORDER BY customerpassid DESC LIMIT 1;'
     Assert-Verification 'Assigned membership uses route customer and catalog visit allowance' ((Invoke-VerificationSql $taskDatabase "SELECT customerid || ',' || passtypeid || ',' || remainingvisits FROM customerpasses WHERE customerpassid = $taskAssignedPassId;") -eq '1026,102,1')
-    Assert-Verification 'Purchase and expiry dates come from the server and catalog' ((Invoke-VerificationSql $taskDatabase "SELECT count(*) FROM customerpasses WHERE customerpassid = $taskAssignedPassId AND purchasedate = CURRENT_DATE AND expirydate = CURRENT_DATE + 1;") -eq '1')
+    Assert-Verification 'Purchase and expiry dates come from the server and catalog' ((Invoke-VerificationSql $taskDatabase "SELECT count(*) FROM customerpasses WHERE customerpassid = $taskAssignedPassId AND purchasedate = (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Sofia')::date AND expirydate = (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Sofia')::date + 1;") -eq '1')
     $taskResponse = Send-VerificationRequest $taskClient GET "/Visits/Create?passId=$taskAssignedPassId"
     Assert-Verification 'Newly assigned pass appears in check-in selection' ($taskResponse.Status -eq 200 -and $taskResponse.Html.Contains(('id="pass-' + $taskAssignedPassId + '"')) -and $taskResponse.Html -match 'Day Entry')
     $taskResponse = Submit-VerificationForm $taskClient "/Visits/Create?passId=$taskAssignedPassId" '/Visits/Create' @{ CustomerPassId = $taskAssignedPassId; TrainerId = '' }
@@ -305,6 +308,78 @@ VALUES (401, 301, CURRENT_TIMESTAMP - INTERVAL '1 day', 201);
     $taskResponse = Submit-VerificationForm $taskClient '/Customers/Purchase/1026' '/Customers/Purchase/1026' @{ PassTypeId = '104' }
     Assert-Verification 'Invalid catalog validity cannot overflow the expiry date' ($taskResponse.Status -eq 200 -and (Invoke-VerificationSql $taskDatabase 'SELECT count(*) FROM customerpasses WHERE passtypeid = 104;') -eq '0')
     Invoke-VerificationSql $taskDatabase 'DELETE FROM gympasses WHERE passtypeid = 104;' | Out-Null
+
+    # Two independent member sessions exercise ownership checks through both MVC and the old APIs.
+    $taskAnonymous = New-VerificationClient
+    Assert-Verification 'Anonymous member page redirects to sign-in' ((Send-VerificationRequest $taskAnonymous GET '/Member').Location -like '/Account/Login*')
+    Assert-Verification 'Login stylesheet remains available without authentication' ((Send-VerificationRequest $taskAnonymous GET '/css/tailwind.css').Status -eq 200)
+    Assert-Verification 'Anonymous management API is unauthorized' ((Send-VerificationRequest $taskAnonymous GET '/Trainers/GetOne?id=201').Status -eq 401)
+    $taskMember = New-VerificationClient
+    $taskOtherMember = New-VerificationClient
+    $taskMemberRegister = Send-VerificationRequest $taskMember POST '/auth/register' $null @{ Email = 'member-a@verification.invalid'; Username = 'Member A'; Password = $taskPassword; Dateofbirth = '1990-01-01'; Role = 'Admin' }
+    $taskOtherRegister = Send-VerificationRequest $taskOtherMember POST '/auth/register' $null @{ Email = 'member-b@verification.invalid'; Username = 'Member B'; Password = $taskPassword; Dateofbirth = '1990-01-01'; Role = 'Admin' }
+    $taskMemberId = ($taskMemberRegister.Html | ConvertFrom-Json).id
+    $taskOtherMemberId = ($taskOtherRegister.Html | ConvertFrom-Json).id
+    Assert-Verification 'Registration ignores requested administrator role' ($taskMemberRegister.Status -eq 200 -and $taskOtherRegister.Status -eq 200 -and (Invoke-VerificationSql $taskDatabase "SELECT count(*) FROM customers WHERE customerid IN ($taskMemberId, $taskOtherMemberId) AND role = 'User';") -eq '2')
+    Assert-Verification 'Regular account home redirects to its own portal' ((Send-VerificationRequest $taskMember GET '/').Location -eq '/Member')
+    $taskResponse = Send-VerificationRequest $taskMember GET '/Member'
+    Assert-Verification 'Member portal excludes other customers' ($taskResponse.Status -eq 200 -and $taskResponse.Html -match 'member-a@verification.invalid' -and $taskResponse.Html -notmatch 'member-b@verification.invalid|member1@verification.invalid')
+    foreach ($taskRoute in @('/Customers','/Customers/Details/1001','/Customers/Purchase/1001','/Passes','/Team','/Administration','/Visits/Edit/401','/Visits/Delete/401')) {
+        $taskResponse = Send-VerificationRequest $taskMember GET $taskRoute
+        Assert-Verification "Regular account cannot access $taskRoute" ($taskResponse.Status -eq 403 -or $taskResponse.Location -eq '/Account/AccessDenied')
+    }
+    foreach ($taskApiRoute in @('/Trainers/GetOne?id=201','/Gympass/GetOne?id=101')) {
+        Assert-Verification "Regular account cannot read $taskApiRoute" ((Send-VerificationRequest $taskMember GET $taskApiRoute).Status -eq 403)
+    }
+    Assert-Verification 'Access-denied page returns HTTP 403' ((Send-VerificationRequest $taskMember GET '/Account/AccessDenied').Status -eq 403)
+    $taskResponse = Submit-VerificationForm $taskClient "/Customers/Purchase/$taskMemberId" "/Customers/Purchase/$taskMemberId" @{ PassTypeId = '101' }
+    $taskResponse = Submit-VerificationForm $taskClient "/Customers/Purchase/$taskOtherMemberId" "/Customers/Purchase/$taskOtherMemberId" @{ PassTypeId = '101' }
+    $taskMemberPassId = Invoke-VerificationSql $taskDatabase "SELECT customerpassid FROM customerpasses WHERE customerid = $taskMemberId LIMIT 1;"
+    $taskOtherPassId = Invoke-VerificationSql $taskDatabase "SELECT customerpassid FROM customerpasses WHERE customerid = $taskOtherMemberId LIMIT 1;"
+    $taskResponse = Send-VerificationRequest $taskMember GET '/Visits/Create'
+    Assert-Verification 'Member pass selector contains only owned passes' ($taskResponse.Status -eq 200 -and $taskResponse.Html.Contains(('id="pass-' + $taskMemberPassId + '"')) -and -not $taskResponse.Html.Contains(('id="pass-' + $taskOtherPassId + '"')) -and $taskResponse.Html -notmatch 'Member B|Maya Petrova')
+    Assert-Verification 'Changing the selected pass URL cannot expose another membership' ((Send-VerificationRequest $taskMember GET "/Visits/Create?passId=$taskOtherPassId").Status -eq 404)
+    $taskResponse = Submit-VerificationForm $taskMember '/Visits/Create' '/Visits/Create' @{ CustomerPassId = $taskOtherPassId; TrainerId = '' }
+    Assert-Verification 'MVC cannot check in with another account pass' ($taskResponse.Status -eq 404)
+    Assert-Verification 'API cannot check in with another account pass' ((Send-VerificationRequest $taskMember POST '/Checkin/Create' $null @{ CustomerPassId = [int]$taskOtherPassId }).Status -eq 404)
+    Assert-Verification 'Rejected cross-account check-in preserves visits' ((Invoke-VerificationSql $taskDatabase "SELECT remainingvisits FROM customerpasses WHERE customerpassid = $taskOtherPassId;") -eq '12')
+    Assert-Verification 'Member check-in requires antiforgery' ((Send-VerificationRequest $taskMember POST '/Visits/Create' @{ CustomerPassId = $taskMemberPassId }).Status -eq 400)
+    $taskResponse = Submit-VerificationForm $taskMember '/Visits/Create' '/Visits/Create' @{ CustomerPassId = $taskMemberPassId; TrainerId = '' }
+    Assert-Verification 'Member can check in with their own pass' ($taskResponse.Status -eq 302 -and (Invoke-VerificationSql $taskDatabase "SELECT remainingvisits FROM customerpasses WHERE customerpassid = $taskMemberPassId;") -eq '11')
+    $taskResponse = Send-VerificationRequest $taskOtherMember POST '/Checkin/Create' $null @{ CustomerPassId = [int]$taskOtherPassId }
+    Assert-Verification 'Member can check in through the existing API using their own pass' ($taskResponse.Status -eq 201)
+    $taskMemberVisitId = Invoke-VerificationSql $taskDatabase "SELECT checkinid FROM checkins WHERE customerpassid = $taskMemberPassId LIMIT 1;"
+    $taskOtherVisitId = Invoke-VerificationSql $taskDatabase "SELECT checkinid FROM checkins WHERE customerpassid = $taskOtherPassId LIMIT 1;"
+    $taskResponse = Send-VerificationRequest $taskMember GET '/Visits'
+    Assert-Verification 'MVC history is limited to the signed-in account' ($taskResponse.Status -eq 200 -and $taskResponse.Html -match 'member-a@verification.invalid' -and $taskResponse.Html -notmatch 'member-b@verification.invalid|Maya Petrova')
+    $taskResponse = Send-VerificationRequest $taskMember POST '/Checkin/GetAll' $null @{ Page = 1; PageSize = 100; OwnerId = [int]$taskOtherMemberId }
+    $taskMemberHistory = @($taskResponse.Html | ConvertFrom-Json)
+    Assert-Verification 'API list ignores injected owner filter and returns own history' ($taskResponse.Status -eq 200 -and $taskMemberHistory.Count -eq 1 -and $taskMemberHistory[0].customerPassId -eq [int]$taskMemberPassId)
+    Assert-Verification 'Member can read their own MVC check-in' ((Send-VerificationRequest $taskMember GET "/Visits/Details/$taskMemberVisitId").Status -eq 200)
+    Assert-Verification 'Member cannot read another MVC check-in by ID' ((Send-VerificationRequest $taskMember GET "/Visits/Details/$taskOtherVisitId").Status -eq 404)
+    Assert-Verification 'Member cannot read another API check-in by ID' ((Send-VerificationRequest $taskMember GET "/Checkin/GetOne?id=$taskOtherVisitId").Status -eq 404)
+    Assert-Verification 'Member can read own API check-in' ((Send-VerificationRequest $taskMember GET "/Checkin/GetOne?id=$taskMemberVisitId").Status -eq 200)
+    Assert-Verification 'Member cannot delete a check-in to restore visits' ((Send-VerificationRequest $taskMember DELETE "/Checkin/Delete?id=$taskMemberVisitId").Status -eq 403)
+    Assert-Verification 'Member cannot change check-in records through API' ((Send-VerificationRequest $taskMember PUT '/Checkin/Update' $null @{ CheckinId = [int]$taskMemberVisitId; CustomerPassId = [int]$taskOtherPassId }).Status -eq 403)
+    $taskResponse = Submit-VerificationForm $taskMember '/Member' '/Administration/ChangeRole' @{ Id = $taskMemberId; Role = 'Admin' }
+    Assert-Verification 'Member cannot promote themselves through the role form' ($taskResponse.Status -eq 403 -or $taskResponse.Location -eq '/Account/AccessDenied')
+    Assert-Verification 'Role management requires antiforgery' ((Send-VerificationRequest $taskClient POST '/Administration/ChangeRole' @{ Id = $taskOtherMemberId; Role = 'Admin' }).Status -eq 400)
+    $taskResponse = Submit-VerificationForm $taskClient '/Administration' '/Administration/ChangeRole' @{ Id = $taskOtherMemberId; Role = 'Admin' }
+    Assert-Verification 'Admin can promote another account' ($taskResponse.Status -eq 302 -and (Invoke-VerificationSql $taskDatabase "SELECT role FROM customers WHERE customerid = $taskOtherMemberId;") -eq 'Admin')
+    Assert-Verification 'Promotion is effective with the existing access token' ((Send-VerificationRequest $taskOtherMember GET '/Administration').Status -eq 200)
+    $taskResponse = Submit-VerificationForm $taskClient '/Administration' '/Administration/ChangeRole' @{ Id = $taskOtherMemberId; Role = 'User' }
+    Assert-Verification 'Demotion immediately removes administrator API access' ((Send-VerificationRequest $taskOtherMember GET '/Trainers/GetOne?id=201').Status -eq 403)
+    $taskAdminId = Invoke-VerificationSql $taskDatabase "SELECT customerid FROM customers WHERE email = 'account@verification.invalid';"
+    $taskResponse = Submit-VerificationForm $taskClient '/Administration' '/Administration/ChangeRole' @{ Id = $taskAdminId; Role = 'User' }
+    Assert-Verification 'Administrator cannot remove their own role' ($taskResponse.Status -eq 302 -and (Invoke-VerificationSql $taskDatabase "SELECT role FROM customers WHERE customerid = $taskAdminId;") -eq 'Admin')
+    $taskResponse = Submit-VerificationForm $taskClient '/Administration' '/Administration/ChangeRole' @{ Id = $taskMemberId; Role = 'SuperAdmin' }
+    Assert-Verification 'Unknown roles are rejected' ($taskResponse.Status -eq 400 -and (Invoke-VerificationSql $taskDatabase "SELECT role FROM customers WHERE customerid = $taskMemberId;") -eq 'User')
+    $taskState.Fixtures['MemberId'] = [int]$taskMemberId
+    $taskState.Fixtures['MemberPassId'] = [int]$taskMemberPassId
+    $taskState.Fixtures['MemberVisitId'] = [int]$taskMemberVisitId
+    $taskMember.Dispose()
+    $taskOtherMember.Dispose()
+    $taskAnonymous.Dispose()
 
     # Leave realistic active, expired, exhausted and recent-visit states for browser verification.
     $taskResponse = Submit-VerificationForm $taskClient '/Visits/Create?passId=301' '/Visits/Create' @{ CustomerPassId = '301'; TrainerId = '201' }
