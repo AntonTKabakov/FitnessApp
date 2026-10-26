@@ -1,0 +1,22 @@
+@model AccountRolesViewModel
+@{ ViewData["Title"] = "Account roles"; }
+<h1 class="page-heading">Account roles</h1>
+<p class="page-description mb-7">Admins manage the club. Users can view their own data and check in using their own passes.</p>
+<section class="panel" aria-label="Account roles">
+    <form asp-action="Index" method="get" class="flex flex-col gap-3 p-5 sm:flex-row" role="search"><label for="role-search" class="sr-only">Name or email</label><input class="input" id="role-search" name="search" type="search" value="@Model.Search" placeholder="Search accounts by name or email" maxlength="100" /><button class="btn btn-secondary" type="submit">Search</button></form>
+    <div class="table-wrap" tabindex="0" role="region" aria-label="Accounts table">
+        <table class="data-table min-w-160"><caption class="sr-only">Account names, emails, and roles</caption><thead><tr><th scope="col">Account</th><th scope="col">Current role</th><th scope="col">Change role</th></tr></thead><tbody>
+        @foreach (var account in Model.Accounts)
+        {
+            <tr><td><span class="font-semibold">@account.Name</span><p class="mt-1 break-all text-xs text-slate-500">@account.Email</p></td><td><span class="badge @(account.Role == UserRoles.Admin ? "badge-success" : "badge-neutral")">@account.Role</span></td><td>
+                @if (account.Id == Model.CurrentUserId) { <span class="text-sm text-slate-500">Your account</span> }
+                else
+                {
+                    <form asp-action="ChangeRole" method="post" class="flex flex-wrap items-center gap-2"><input type="hidden" name="Id" value="@account.Id" /><label class="sr-only" for="account-role-@account.Id">Role for @account.Email</label><select class="input w-auto" name="Role" id="account-role-@account.Id"><option value="User" selected="@(account.Role == UserRoles.User)">User</option><option value="Admin" selected="@(account.Role == UserRoles.Admin)">Admin</option></select><button class="btn btn-secondary" type="submit">Save role</button></form>
+                }
+            </td></tr>
+        }
+        </tbody></table>
+    </div>
+    <partial name="_Pagination" model="Model.Pagination" />
+</section>

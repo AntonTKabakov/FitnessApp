@@ -188,7 +188,7 @@ public class AuthService
         await _db.SaveChangesAsync(cancellationToken);
 
         var accessToken = _tokenService.GenerateAccessToken(
-            user.Id.ToString());
+            user.Id.ToString(), user.Role);
 
         var accessTokenExpiresAt = now.AddMinutes(15);
 

@@ -1,11 +1,13 @@
 ﻿
 using FitnessApp.DTO;
+using Microsoft.AspNetCore.Authorization;
 using FitnessApp.Service;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FitnessApp.Controllers;
 
 [ApiController]
+[AllowAnonymous]
 [Route("auth")]
 public class AuthController : ControllerBase
 {

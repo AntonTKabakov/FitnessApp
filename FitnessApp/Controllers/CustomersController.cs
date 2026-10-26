@@ -1,3 +1,4 @@
+﻿using Microsoft.AspNetCore.Authorization;
 using FitnessApp.Filters;
 using FitnessApp.Service;
 using FitnessApp.Service.Interfaces;
@@ -7,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace FitnessApp.Controllers;
 
 [TypeFilter(typeof(DatabaseUnavailableFilter))]
+[Authorize(Roles = FitnessApp.Models.UserRoles.Admin)]
 public class CustomersController(ReceptionQueryService queries, ICustomerPassService customerPasses) : Controller
 {
     [HttpGet]

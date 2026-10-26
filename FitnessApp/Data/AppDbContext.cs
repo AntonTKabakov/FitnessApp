@@ -55,6 +55,13 @@ public partial class AppDbContext : DbContext
                 .HasColumnName("password")
                 .IsRequired();
 
+            entity.Property(e => e.Role)
+                .HasColumnName("role")
+                .HasMaxLength(10)
+                .HasDefaultValue(UserRoles.User)
+                .IsRequired();
+            entity.ToTable("customers", table => table.HasCheckConstraint("customers_role_check", "role IN ('Admin', 'User')"));
+
             entity.Property(e => e.Dateofbirth)
                 .HasColumnName("dateofbirth");
 

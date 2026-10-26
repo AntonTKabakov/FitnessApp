@@ -1,4 +1,5 @@
 using System.Data.Common;
+using Microsoft.AspNetCore.Authorization;
 using FitnessApp.DTO;
 using FitnessApp.Service;
 using FitnessApp.ViewModels;
@@ -7,9 +8,17 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FitnessApp.Controllers;
 
+[AllowAnonymous]
 [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
 public class AccountController(AuthService authService, ILogger<AccountController> logger) : Controller
 {
+    [HttpGet]
+    public IActionResult AccessDenied()
+    {
+        Response.StatusCode = StatusCodes.Status403Forbidden;
+        return View();
+    }
+
     [HttpGet]
     public IActionResult Login(string? returnUrl = null)
     {

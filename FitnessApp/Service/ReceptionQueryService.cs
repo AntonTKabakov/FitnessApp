@@ -79,10 +79,11 @@ public class ReceptionQueryService(AppDbContext db)
         return customer;
     }
 
-    public async Task<VisitsViewModel> Visits(string? query, DateOnly? date, int page, CancellationToken ct)
+    public async Task<VisitsViewModel> Visits(string? query, DateOnly? date, int page, CancellationToken ct, int? ownerId = null)
     {
         query = NormalizeQuery(query);
         var source = db.Checkins.AsNoTracking();
+        if (ownerId.HasValue) source = source.Where(x => x.Customerpass.Customerid == ownerId.Value);
         if (query != null) source = source.Where(x => x.Customerpass.Customer.Fullname.ToLower().Contains(query.ToLower()) || x.Customerpass.Customer.Email.ToLower().Contains(query.ToLower()));
         if (date.HasValue)
         {
@@ -114,19 +115,21 @@ public class ReceptionQueryService(AppDbContext db)
         return model;
     }
 
-    public Task<VisitRowViewModel?> Visit(int id, CancellationToken ct) => db.Checkins.AsNoTracking()
-        .Where(x => x.Checkinid == id).Select(VisitProjection).SingleOrDefaultAsync(ct);
+    public Task<VisitRowViewModel?> Visit(int id, CancellationToken ct, int? ownerId = null) => db.Checkins.AsNoTracking()
+        .Where(x => x.Checkinid == id && (!ownerId.HasValue || x.Customerpass.Customerid == ownerId.Value))
+        .Select(VisitProjection).SingleOrDefaultAsync(ct);
 
     public Task<List<SelectListItem>> Trainers(CancellationToken ct) => db.Trainers.AsNoTracking().OrderBy(x => x.Fullname)
         .Select(x => new SelectListItem(x.Fullname + " · " + x.Specialty, x.Trainerid.ToString())).ToListAsync(ct);
 
-    public async Task PopulateCheckin(CheckinFormViewModel model, int? customerId, CancellationToken ct)
+    public async Task PopulateCheckin(CheckinFormViewModel model, int? customerId, CancellationToken ct, int? ownerId = null)
     {
         var today = ReceptionTime.Today;
         var start = today.ToDateTime(TimeOnly.MinValue);
         var end = start.AddDays(1);
         var query = NormalizeQuery(model.Query);
         var source = db.Customerpasses.AsNoTracking().Where(x => x.Expirydate >= today && x.Remainingvisits > 0);
+        if (ownerId.HasValue) source = source.Where(x => x.Customerid == ownerId.Value);
         if (customerId.HasValue) source = source.Where(x => x.Customerid == customerId);
         if (query != null) source = source.Where(x => x.Customer.Fullname.ToLower().Contains(query.ToLower()) || x.Customer.Email.ToLower().Contains(query.ToLower()));
         // Preserve the chosen card when re-rendering a form, without loading the whole directory.

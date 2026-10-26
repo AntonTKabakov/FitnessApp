@@ -1,4 +1,5 @@
-﻿using FitnessApp.DTO.GympassDTOs;
+﻿using Microsoft.AspNetCore.Authorization;
+using FitnessApp.DTO.GympassDTOs;
 using FitnessApp.DTO.TrainerDTOs;
 using FitnessApp.Filters;
 using FitnessApp.Service.Interfaces;
@@ -6,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace FitnessApp.Controllers;
 
+[Authorize(Roles = FitnessApp.Models.UserRoles.Admin)]
 public class GympassController : ControllerBase
 {
     private readonly IGympassService _service;

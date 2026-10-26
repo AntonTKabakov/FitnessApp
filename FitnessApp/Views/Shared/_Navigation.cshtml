@@ -1,13 +1,18 @@
 @{
     var current = ViewContext.RouteData.Values["controller"]?.ToString();
-    var items = new[]
+    var items = User.IsInRole(UserRoles.Admin) ? new[]
     {
         (Controller: "Home", Text: "Dashboard", Icon: "grid"),
         (Controller: "Customers", Text: "Customers", Icon: "users"),
         (Controller: "Visits", Text: "Check-ins", Icon: "check"),
         (Controller: "Passes", Text: "Gym passes", Icon: "card"),
-        (Controller: "Team", Text: "Trainers", Icon: "activity")
-    };
+        (Controller: "Team", Text: "Trainers", Icon: "activity"),
+        (Controller: "Administration", Text: "Account roles", Icon: "users")
+    } : User.Identity?.IsAuthenticated == true ? new[]
+    {
+        (Controller: "Member", Text: "My account", Icon: "user"),
+        (Controller: "Visits", Text: "My check-ins", Icon: "check")
+    } : Array.Empty<(string Controller, string Text, string Icon)>();
 }
 <nav aria-label="Main navigation" class="space-y-1">
     @foreach (var item in items)

@@ -12,6 +12,7 @@ public partial class User
     public DateOnly? Dateofbirth { get; set; }
 
     public string Password { get; set; } = string.Empty;
+    public string Role { get; set; } = UserRoles.User;
 
     public virtual ICollection<Customerpass> Customerpasses { get; set; }
         = new List<Customerpass>();

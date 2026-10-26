@@ -1,12 +1,12 @@
 ﻿@model VisitsViewModel
-@{ ViewData["Title"] = "Check-ins"; }
+@{ ViewData["Title"] = User.IsInRole(UserRoles.Admin) ? "Check-ins" : "My check-ins"; }
 <div class="mb-7 flex flex-wrap items-start justify-between gap-4">
-    <div><h1 class="page-heading">Check-ins</h1><p class="page-description">Entry history and trainer-assisted visits.</p></div>
+    <div><h1 class="page-heading">@ViewData["Title"]</h1><p class="page-description">@(User.IsInRole(UserRoles.Admin) ? "Entry history and trainer-assisted visits." : "Your own entry history and trainer-assisted visits.")</p></div>
     <a class="btn btn-primary" asp-action="Create"><partial name="_Icon" model='@("check")' /> New check-in</a>
 </div>
 <section class="panel" aria-label="Check-in history">
     <form asp-action="Index" method="get" class="grid gap-3 p-5 sm:grid-cols-2 xl:grid-cols-[1fr_12rem_auto_auto]">
-        <div><label for="visit-query" class="label">Customer</label><input class="input" id="visit-query" name="query" value="@Model.Query" type="search" placeholder="Name or email" maxlength="100" /></div>
+        @if (User.IsInRole(UserRoles.Admin)) { <div><label for="visit-query" class="label">Customer</label><input class="input" id="visit-query" name="query" value="@Model.Query" type="search" placeholder="Name or email" maxlength="100" /></div> }
         <div><label for="visit-date" class="label">Date</label><input class="input" id="visit-date" name="date" value="@Model.Date?.ToString("yyyy-MM-dd")" type="date" /></div>
         <button class="btn btn-primary self-end" type="submit">Filter</button>
         <a class="btn btn-secondary self-end" asp-action="Index">Clear</a>

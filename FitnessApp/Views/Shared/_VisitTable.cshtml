@@ -13,7 +13,11 @@ else
                 @foreach (var visit in Model)
                 {
                     <tr>
-                        <td><a class="font-semibold text-slate-900 hover:text-emerald-800" asp-controller="Customers" asp-action="Details" asp-route-id="@visit.CustomerId">@visit.DisplayName</a><p class="mt-1 text-xs text-slate-500">@visit.CustomerEmail</p></td>
+                        <td>
+                            @if (User.IsInRole(UserRoles.Admin)) { <a class="font-semibold text-slate-900 hover:text-emerald-800" asp-controller="Customers" asp-action="Details" asp-route-id="@visit.CustomerId">@visit.DisplayName</a> }
+                            else { <span class="font-semibold text-slate-900">@visit.DisplayName</span> }
+                            <p class="mt-1 text-xs text-slate-500">@visit.CustomerEmail</p>
+                        </td>
                         <td>@visit.PassName</td>
                         <td class="whitespace-nowrap"><time datetime="@visit.CheckedInAt.ToString("yyyy-MM-ddTHH:mm:ss")">@visit.CheckedInAt.ToString("dd MMM yyyy · HH:mm", System.Globalization.CultureInfo.InvariantCulture)</time></td>
                         <td>@(visit.TrainerName ?? "Independent training")</td>

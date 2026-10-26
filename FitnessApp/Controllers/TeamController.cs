@@ -1,3 +1,4 @@
+﻿using Microsoft.AspNetCore.Authorization;
 using System.Data.Common;
 using FitnessApp.Data;
 using FitnessApp.DTO.TrainerDTOs;
@@ -8,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FitnessApp.Controllers;
 
+[Authorize(Roles = FitnessApp.Models.UserRoles.Admin)]
 public sealed class TeamController(
     AppDbContext db, ITrainerService trainers, ILogger<TeamController> logger) : Controller
 {

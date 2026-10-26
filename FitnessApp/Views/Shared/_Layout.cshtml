@@ -26,12 +26,12 @@
                 <button type="button" class="rounded-lg p-2 text-slate-500 lg:hidden" data-nav-close aria-label="Close navigation"><partial name="_Icon" model='@("close")' /></button>
             </div>
             <div class="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-5">
-                <p class="mb-3 px-4 text-xs font-semibold uppercase tracking-widest text-slate-400">Reception</p>
+                <p class="mb-3 px-4 text-xs font-semibold uppercase tracking-widest text-slate-400">@(User.IsInRole(UserRoles.Admin) ? "Reception" : "My account")</p>
                 <partial name="_Navigation" />
                 <div class="mt-auto border-t border-slate-200 pt-5">
                     @if (User.Identity?.IsAuthenticated == true)
                     {
-                        <p class="mb-3 px-4 text-sm font-semibold text-slate-700">Signed in</p>
+                        <p class="mb-3 break-words px-4 text-sm font-semibold text-slate-700">@User.FindFirst(System.Security.Claims.ClaimTypes.GivenName)?.Value <span class="badge badge-neutral mt-1">@(User.IsInRole(UserRoles.Admin) ? "Admin" : "User")</span></p>
                         <form asp-controller="Account" asp-action="Logout" method="post"><button class="nav-link w-full" type="submit"><partial name="_Icon" model='@("logout")' /> Sign out</button></form>
                     }
                     else { <a class="nav-link" asp-controller="Account" asp-action="Login"><partial name="_Icon" model='@("user")' /> Sign in</a> }
@@ -41,15 +41,15 @@
         </aside>
         <div class="min-w-0 flex-1 lg:ml-64">
             <div class="hidden min-h-20 items-center justify-between border-b border-slate-200 bg-white px-8 lg:flex">
-                <p class="text-sm font-medium text-slate-500">Fitness club management</p>
-                <a class="btn btn-primary min-h-10 py-2" asp-controller="Visits" asp-action="Create"><partial name="_Icon" model='@("check")' /> New check-in</a>
+                <p class="text-sm font-medium text-slate-500">@(User.IsInRole(UserRoles.Admin) ? "Fitness club management" : "My fitness account")</p>
+                @if (User.Identity?.IsAuthenticated == true) { <a class="btn btn-primary min-h-10 py-2" asp-controller="Visits" asp-action="Create"><partial name="_Icon" model='@("check")' /> New check-in</a> }
             </div>
             <main id="main-content" class="mx-auto w-full max-w-screen-2xl p-5 sm:p-8 xl:p-10" tabindex="-1">
                 <partial name="_Notifications" />
                 @RenderBody()
             </main>
             <footer class="mx-auto flex max-w-screen-2xl flex-wrap items-center justify-between gap-3 px-5 py-6 text-xs text-slate-500 sm:px-8 xl:px-10">
-                <span>FitnessApp · Reception workspace</span><span>@ReceptionTime.Today.ToString("dd MMM yyyy", System.Globalization.CultureInfo.InvariantCulture)</span>
+                <span>FitnessApp · @(User.IsInRole(UserRoles.Admin) ? "Reception workspace" : "Member workspace")</span><span>@ReceptionTime.Today.ToString("dd MMM yyyy", System.Globalization.CultureInfo.InvariantCulture)</span>
             </footer>
         </div>
     </div>

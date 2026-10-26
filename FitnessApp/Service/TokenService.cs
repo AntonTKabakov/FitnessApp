@@ -15,14 +15,15 @@ public class TokenService
         _accessSecret = jwtSettings.AccessSecret;
     }
 
-    public string GenerateAccessToken(string userId)
+    public string GenerateAccessToken(string userId, string role = FitnessApp.Models.UserRoles.User)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_accessSecret));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var claims = new[]
         {
-            new Claim(JwtRegisteredClaimNames.Sub, userId)
+            new Claim(JwtRegisteredClaimNames.Sub, userId),
+            new Claim(ClaimTypes.Role, role)
         };
 
         var token = new JwtSecurityToken(

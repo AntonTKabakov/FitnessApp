@@ -5,11 +5,14 @@
 <p class="page-description mb-7">Find a valid pass, choose a trainer if needed, and check the customer in.</p>
 <div class="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
     <section class="panel" aria-label="Check-in form"><div class="panel-body">
-        <h2 class="text-lg font-semibold"><span class="mr-2 text-emerald-700">01</span> Find a customer</h2>
+        <h2 class="text-lg font-semibold"><span class="mr-2 text-emerald-700">01</span> @(User.IsInRole(UserRoles.Admin) ? "Find a customer" : "Choose your pass")</h2>
+        @if (User.IsInRole(UserRoles.Admin))
+        {
         <form asp-action="Create" method="get" class="mt-4 flex flex-col gap-3 sm:flex-row" role="search">
             <label for="checkin-query" class="sr-only">Customer name or email</label><input id="checkin-query" class="input" name="query" value="@Model.Query" type="search" maxlength="100" placeholder="Customer name or email" />
             <button class="btn btn-secondary" type="submit">Find pass</button>
         </form>
+        }
         <form asp-action="Create" method="post" class="mt-6 space-y-6">
             <input type="hidden" name="Query" value="@Model.Query" />
             <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div>
@@ -19,8 +22,9 @@
                 @if (Model.Passes.Count == 0)
                 {
                     <div class="notice notice-info" role="status">
-                        <p>No valid customer passes with visits remaining were found. Pass types must be assigned to a customer before they can be used for check-in.</p>
-                        <a class="text-link mt-3 inline-block" asp-controller="Customers" asp-action="Index">Find a customer and assign a pass</a>
+                        <p>No valid customer passes with visits remaining were found.</p>
+                        @if (User.IsInRole(UserRoles.Admin)) { <a class="text-link mt-3 inline-block" asp-controller="Customers" asp-action="Index">Find a customer and assign a pass</a> }
+                        else { <p>Ask your club administrator to assign a membership to your account.</p> }
                     </div>
                 }
                 <div class="max-h-96 space-y-3 overflow-y-auto p-1">

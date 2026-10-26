@@ -18,6 +18,8 @@ public class CheckinService : ICheckinService
     public List<CheckinResponseDTO> GetAll(CheckinFilterModel filters)
     {
         IQueryable<Checkin> baseQuery = _context.Checkins;
+        if (filters.OwnerId.HasValue)
+            baseQuery = baseQuery.Where(x => x.Customerpass.Customerid == filters.OwnerId.Value);
 
         if (filters.CustomerPassId.HasValue)
         {
@@ -70,6 +72,10 @@ public class CheckinService : ICheckinService
 
     public int? Create(CheckinEditDTO checkin)
     {
+        var now = FitnessApp.ViewModels.ReceptionTime.Now;
+        var today = DateOnly.FromDateTime(now);
+        var dayStart = now.Date;
+        var dayEnd = dayStart.AddDays(1);
         Customerpass? customerPass = _context.Customerpasses
             .Where(x => x.Customerpassid == checkin.CustomerPassId)
             .FirstOrDefault();
@@ -79,7 +85,7 @@ public class CheckinService : ICheckinService
             return null;
         }
 
-        if (customerPass.Expirydate < DateOnly.FromDateTime(DateTime.Now))
+        if (customerPass.Expirydate < today)
         {
             return null;
         }
@@ -91,7 +97,7 @@ public class CheckinService : ICheckinService
 
         bool alreadyCheckedToday = _context.Checkins.Any(x =>
             x.Customerpassid == checkin.CustomerPassId &&
-            x.Checkindatetime.Date == DateTime.Now.Date);
+            x.Checkindatetime >= dayStart && x.Checkindatetime < dayEnd);
 
         if (alreadyCheckedToday)
         {
@@ -101,7 +107,7 @@ public class CheckinService : ICheckinService
         Checkin entity = new Checkin();
 
         entity.Customerpassid = checkin.CustomerPassId;
-        entity.Checkindatetime = DateTime.Now;
+        entity.Checkindatetime = now;
         entity.Trainerid = checkin.TrainerId;
 
         customerPass.Remainingvisits--;

@@ -218,7 +218,7 @@ namespace FitnessApp.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<DateOnly>("Dateofbirth")
+                    b.Property<DateOnly?>("Dateofbirth")
                         .HasColumnType("date")
                         .HasColumnName("dateofbirth");
 
@@ -239,13 +239,24 @@ namespace FitnessApp.Migrations
                         .HasColumnType("text")
                         .HasColumnName("password");
 
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasDefaultValue("User")
+                        .HasColumnName("role");
+
                     b.HasKey("Id")
                         .HasName("customers_pkey");
 
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.ToTable("customers", (string)null);
+                    b.ToTable("customers", null, t =>
+                        {
+                            t.HasCheckConstraint("customers_role_check", "role IN ('Admin', 'User')");
+                        });
                 });
 
             modelBuilder.Entity("FitnessApp.Models.Checkin", b =>

@@ -1,10 +1,12 @@
-﻿using FitnessApp.DTO.TrainerDTOs;
+﻿using Microsoft.AspNetCore.Authorization;
+using FitnessApp.DTO.TrainerDTOs;
 using FitnessApp.Filters;
 using FitnessApp.Service.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FitnessApp.Controllers;
 
+[Authorize(Roles = FitnessApp.Models.UserRoles.Admin)]
 public class TrainersController : ControllerBase
 {
     private readonly ITrainerService _service;
