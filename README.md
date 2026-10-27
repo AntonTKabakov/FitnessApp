@@ -10,10 +10,13 @@ A fitness management system for gym reception: find customers, inspect membershi
 - Check-in registration with an optional trainer, validation of existing pass rules, trainer corrections, and visit cancellation.
 - Gym-pass catalog and trainer management with search, pagination, and validated forms.
 - Account registration, sign-in, session renewal, and sign-out through the existing JWT and refresh-token services.
+- Admin/User roles: admins manage the club and account roles; users see only their own profile, memberships, and check-ins.
 
-Receptionist customer creation, phone-based customer search, extending existing passes, payment processing, and staff roles still need backend support. Their status and the current application boundaries are described in [Frontend implementation](Documents/Frontend-Implementation.md).
+Receptionist customer creation, phone-based customer search, extending existing passes, and payment processing still need backend support. Their status and the current application boundaries are described in [Frontend implementation](Documents/Frontend-Implementation.md).
 
 To give a customer a pass, open **Customers → View profile → Sell a pass**, choose a pass type, and select **Confirm and assign pass**. The new membership appears in the customer's profile and the check-in selection. If the catalog is empty, create a type under **Gym passes → Add pass type** first. Payment is collected separately.
+
+Sign-in is required for application pages and APIs. New and migrated accounts default to User. Admins can manage roles under **Account roles**. See [Roles and account access](Documents/Account-Access.md) for the permission matrix, database migration, explicit first-admin setup, and verification commands.
 
 ## Technologies
 

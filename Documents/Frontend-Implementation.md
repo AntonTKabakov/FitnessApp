@@ -8,13 +8,15 @@ The user explicitly selected `Documents/Design Brief.docx` as the visual fallbac
 
 ## Application structure
 
-The existing .NET 10 project, conventional MVC routing, PostgreSQL schema, dependency injection, JWT cookies, and services remain in place. All new screens render through Razor views; there is no SPA or separate frontend application.
+The existing .NET 10 project, conventional MVC routing, dependency injection, JWT cookies, and services remain in place. The account-access follow-up adds a persisted role and migration. All screens render through Razor views; there is no SPA or separate frontend application.
 
 New MVC controllers use distinct names so the existing API action signatures and routes remain available:
 
 | Route | Screen and integration |
 | --- | --- |
-| `/` or `/Home/Index` | Reception dashboard with real counts and recent visits. |
+| `/` or `/Home/Index` | Admin reception dashboard; regular accounts redirect to their own member portal. |
+| `/Member` | Signed-in account's own profile, memberships, and recent check-ins, identified from validated claims. |
+| `/Administration` | Admin-only account role management with antiforgery-protected changes. |
 | `/Customers` | Search by name/email and paginated customer results. |
 | `/Customers/Details/{id}` | Customer information, purchased passes with validity states, and recent visits. |
 | `/Customers/Create` | Explains that receptionist customer creation is unavailable; no customer is created. |
@@ -30,7 +32,7 @@ New MVC controllers use distinct names so the existing API action signatures and
 | `/Account/Refresh`, `/Account/Logout` | POST forms for existing session renewal and sign-out behavior. |
 | `/Home/Privacy`, `/Home/Error` | Existing supporting pages within the updated layout. |
 
-Existing `/Trainers`, `/Gympass`, and `/Checkin` API controllers continue to expose `GetAll`, `GetOne`, `Create`, `Update`, and `Delete` with their original HTTP methods and binding. The `/auth/register`, `/auth/login`, `/auth/refresh`, and `/auth/session` endpoints also remain unchanged.
+Existing `/Trainers`, `/Gympass`, and `/Checkin` API controllers retain their routes and HTTP methods, with authentication and role/ownership checks now enforced. Trainer/gym-pass APIs and check-in update/delete require Admin. Check-in reads and creation are restricted to owned records for User accounts. The `/auth/register`, `/auth/login`, `/auth/refresh`, and `/auth/session` routes remain available. Registration never accepts an administrator role.
 
 `ReceptionQueryService` supplies asynchronous, read-only projections from the existing `AppDbContext`. The original collection DTOs omit identifiers and some display fields, so those API responses are not sufficient for linked MVC lists. Projection queries retrieve real database records, use stable ordering and bounded pagination, and do not expose password hashes or token data.
 
@@ -50,7 +52,7 @@ The standalone Tailwind 4.3.3 CLI is pinned by SHA256 in `scripts/tailwind-relea
 
 All new state-changing MVC forms use POST and antiforgery validation. Authentication calls reuse the existing HTTP-only cookie services, and return URLs are restricted to local paths. No global antiforgery filter was added to the API controllers. Database failures on the new reception screens render a reusable HTTP 503 page; account/catalog forms show actionable errors. Unavailable data is never replaced with invented statistics or demonstration records.
 
-Reception date labels use `Europe/Sofia`. The original check-in service still stores local timestamps in PostgreSQL `timestamp without time zone`, while refresh-token timestamps remain UTC. The frontend does not migrate or reinterpret stored timestamps. Keep the application host/database local timezone aligned with Europe/Sofia so the preserved service's date rules and the reception indicators agree around midnight.
+Reception and check-in date rules use `Europe/Sofia`. Check-ins store Sofia wall-clock timestamps in the existing PostgreSQL `timestamp without time zone` column; refresh-token timestamps remain UTC. An overnight test exposed a server/database timezone mismatch in the old `DateTime.Now` query. Check-in creation now captures the Sofia time once and compares explicit day boundaries, independent of the database session timezone. Historical timestamps are not rewritten.
 
 ## Missing backend dependencies
 
@@ -60,10 +62,10 @@ Reception date labels use `Europe/Sofia`. The original check-in service still st
 | Receptionist customer creation/editing | There is no dedicated customer-management service. Existing account registration signs in the new account, so it is presented as self-registration rather than silently replacing the receptionist's session. |
 | Existing-pass extensions and payment | Assigning new memberships is supported. Extending an existing pass and collecting/recording payment remain outside this workflow. No payment API is added. |
 | Live active workouts | The system records entry timestamps but has no exit/session-lifecycle data. The dashboard reports today's trainer-assisted visits rather than claiming to count active workouts. |
-| Staff/admin roles | The existing user model and JWT contain no staff/role permissions, and the original management API controllers are unauthenticated. This frontend preserves that behavior and does not claim to implement staff authorization. |
+| Account roles | Implemented in the account-access follow-up: Admin manages the club; User can view only their own records and check in with owned passes. See [Account access](Account-Access.md). |
 | Exact Figma fidelity | Figma access is still required to confirm exact screens, assets, type, spacing, and responsive specifications. The approved document fallback is the implemented visual source. |
 
-No database schema, migrations, payment integration, customer phone field, or role model was changed. Customer pass assignment is an additive service using the existing entities.
+Customer pass assignment uses the existing entities. The account-access follow-up adds a constrained role column and aligns the optional date-of-birth mapping for staff account setup; payment and phone data are unchanged.
 
 ## Significant file changes
 
