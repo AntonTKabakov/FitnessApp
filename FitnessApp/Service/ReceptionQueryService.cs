@@ -7,7 +7,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FitnessApp.Service;
 
-// Read projections for server-rendered pages. Mutations continue through existing services.
 public class ReceptionQueryService(AppDbContext db)
 {
     private static readonly Expression<Func<Checkin, VisitRowViewModel>> VisitProjection = x => new VisitRowViewModel
@@ -42,7 +41,7 @@ public class ReceptionQueryService(AppDbContext db)
         var today = ReceptionTime.Today;
         var source = db.Customers.AsNoTracking();
         if (query != null) source = source.Where(x => x.Fullname.ToLower().Contains(query.ToLower()) || x.Email.ToLower().Contains(query.ToLower()));
-        var pagination = await Pagination(source, page, ct);
+        var pagination = await Pagination(source, page, ct, pageSize: 4);
         if (query != null) pagination.RouteValues["query"] = query;
         return new CustomersViewModel
         {
@@ -90,7 +89,7 @@ public class ReceptionQueryService(AppDbContext db)
             var start = date.Value.ToDateTime(TimeOnly.MinValue);
             source = source.Where(x => x.Checkindatetime.Date == start);
         }
-        var pagination = await Pagination(source, page, ct);
+        var pagination = await Pagination(source, page, ct, pageSize: ownerId.HasValue ? 20 : 5);
         if (query != null) pagination.RouteValues["query"] = query;
         if (date.HasValue) pagination.RouteValues["date"] = date.Value.ToString("yyyy-MM-dd");
         return new VisitsViewModel
@@ -128,7 +127,14 @@ public class ReceptionQueryService(AppDbContext db)
         var start = today.ToDateTime(TimeOnly.MinValue);
         var end = start.AddDays(1);
         var query = NormalizeQuery(model.Query);
-        var source = db.Customerpasses.AsNoTracking().Where(x => x.Expirydate >= today && x.Remainingvisits > 0);
+        var source = db.Customerpasses.AsNoTracking()
+            .Where(x => x.Expirydate >= today && x.Remainingvisits > 0);
+        if (!customerId.HasValue && !ownerId.HasValue && query == null)
+        {
+            model.Passes = [];
+            model.Trainers = await Trainers(ct);
+            return;
+        }
         if (ownerId.HasValue) source = source.Where(x => x.Customerid == ownerId.Value);
         if (customerId.HasValue) source = source.Where(x => x.Customerid == customerId);
         if (query != null) source = source.Where(x => x.Customer.Fullname.ToLower().Contains(query.ToLower()) || x.Customer.Email.ToLower().Contains(query.ToLower()));
@@ -145,10 +151,16 @@ public class ReceptionQueryService(AppDbContext db)
         model.Trainers = await Trainers(ct);
     }
 
-    private static async Task<PaginationViewModel> Pagination<T>(IQueryable<T> source, int page, CancellationToken ct)
+    private static async Task<PaginationViewModel> Pagination<T>(IQueryable<T> source, int page, CancellationToken ct, int pageSize = 20)
     {
-        var pagination = new PaginationViewModel { TotalCount = await source.CountAsync(ct) };
+        var pagination = new PaginationViewModel
+        {
+            TotalCount = await source.CountAsync(ct),
+            PageSize = pageSize
+        };
+
         pagination.Page = Math.Clamp(page, 1, pagination.TotalPages);
+
         return pagination;
     }
 

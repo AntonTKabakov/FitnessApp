@@ -20,7 +20,7 @@ public sealed class PassFormViewModel : IValidatableObject
     [Required, StringLength(50), Display(Name = "Pass name")]
     public string Name { get; set; } = string.Empty;
 
-    [Range(typeof(decimal), "0", "9999.99"), DataType(DataType.Currency)]
+    [Range(typeof(decimal), "0", "9999"), DataType(DataType.Currency)]
     public decimal Price { get; set; }
 
     [Range(1, int.MaxValue), Display(Name = "Maximum visits")]
