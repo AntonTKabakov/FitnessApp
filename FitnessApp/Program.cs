@@ -36,6 +36,13 @@ builder.Services.AddScoped<ReceptionQueryService>();
 builder.Services.AddScoped<ICustomerPassService, CustomerPassService>();
 builder.Services.AddScoped<CurrentUser>();
 builder.Services.AddScoped<AccountRoleService>();
+builder.Services.AddScoped<UserProfileService>();
+builder.Services.AddSingleton<IProfilePictureStorageService, LocalProfilePictureStorageService>();
+builder.Services.AddOptions<ProfilePictureStorageOptions>()
+    .Bind(builder.Configuration.GetSection(ProfilePictureStorageOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+builder.Services.AddAntiforgery(options => options.HeaderName = "RequestVerificationToken");
 
 // Authentication services
 var jwtSettings = JwtSettings.FromConfiguration(
@@ -145,6 +152,9 @@ builder.Services.AddAuthorization(options =>
 
 var app = builder.Build();
 
+// Validate the private storage location at startup, before accepting requests.
+_ = app.Services.GetRequiredService<IProfilePictureStorageService>();
+
 // Explicit, one-time setup. Never promote the first registrant or accept a role from registration.
 var adminEmail = builder.Configuration["AdminBootstrap:Email"]?.Trim().ToLowerInvariant();
 if (!string.IsNullOrWhiteSpace(adminEmail))
@@ -201,3 +211,5 @@ app.MapControllerRoute(
     .WithStaticAssets();
 
 app.Run();
+
+public partial class Program { }

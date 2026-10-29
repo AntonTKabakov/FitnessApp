@@ -6,6 +6,32 @@
 </div>
 <section class="panel mb-7" aria-label="My details"><div class="panel-body">
     <h2 class="text-lg font-semibold">My details</h2>
+    <section class="mt-5 flex flex-col gap-5 sm:flex-row sm:items-start" aria-labelledby="profile-picture-heading"
+             data-profile-picture data-picture-endpoint="@Url.Content("~/api/users/me/profile-picture")"
+             data-default-avatar="@Url.Content("~/images/default-avatar.svg")" data-has-picture="@Model.HasProfilePicture.ToString().ToLowerInvariant()">
+        @Html.AntiForgeryToken()
+        <img src="@Url.Content(Model.ProfilePictureUrl ?? "~/images/default-avatar.svg")" alt="Your profile picture" width="112" height="112"
+             class="size-28 shrink-0 rounded-2xl border border-slate-200 bg-slate-50 object-contain" data-picture-image />
+        <div class="min-w-0 flex-1">
+            <h3 id="profile-picture-heading" class="font-semibold">Profile picture</h3>
+            <p id="profile-picture-help" class="mt-1 text-sm text-slate-500">Choose a JPEG, PNG, or WebP image up to 5 MB. Preview it before uploading.</p>
+            <input type="file" id="profile-picture-file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" class="sr-only" tabindex="-1"
+                   aria-describedby="profile-picture-help" data-picture-file />
+            <div class="mt-3 flex flex-wrap gap-2">
+                <button type="button" class="btn btn-secondary" data-picture-choose>Change Profile Picture</button>
+                <button type="button" class="btn btn-primary" data-picture-upload hidden>Upload picture</button>
+                <button type="button" class="btn btn-secondary" data-picture-cancel hidden>Cancel preview</button>
+                <button type="button" class="btn btn-danger" data-picture-remove hidden="@(!Model.HasProfilePicture)">Remove Profile Picture</button>
+            </div>
+            <p class="mt-3 break-words text-sm text-slate-600" data-picture-selection hidden></p>
+            <div class="mt-3" data-picture-progress-wrap hidden>
+                <label for="profile-picture-progress" class="text-sm text-slate-600" data-picture-progress-label>Uploading picture…</label>
+                <progress id="profile-picture-progress" max="100" value="0" class="mt-2 block w-full accent-emerald-700" data-picture-progress></progress>
+            </div>
+            <p class="notice mt-3" role="status" aria-live="polite" aria-atomic="true" data-picture-message hidden></p>
+            <noscript><p class="mt-3 text-sm text-slate-600">Enable JavaScript to preview, upload, or remove your profile picture.</p></noscript>
+        </div>
+    </section>
     <dl class="mt-4 grid gap-4 text-sm sm:grid-cols-3">
         <div><dt class="text-slate-500">Name</dt><dd class="mt-1 break-words font-semibold">@Model.DisplayName</dd></div>
         <div><dt class="text-slate-500">Email</dt><dd class="mt-1 break-all">@Model.Email</dd></div>
@@ -24,3 +50,6 @@
     <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-5"><h2 id="my-visits-heading" class="text-lg font-semibold">My recent check-ins</h2><a class="text-link text-sm" asp-controller="Visits" asp-action="Index">View my history</a></div>
     <partial name="_VisitTable" model="Model.RecentVisits" />
 </section>
+@section Scripts {
+    <script src="~/js/profile-picture.js" asp-append-version="true" defer></script>
+}

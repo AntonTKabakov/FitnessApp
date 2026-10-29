@@ -11,6 +11,7 @@ A fitness management system for gym reception: find customers, inspect membershi
 - Gym-pass catalog and trainer management with search, pagination, and validated forms.
 - Account registration, sign-in, session renewal, and sign-out through the existing JWT and refresh-token services.
 - Admin/User roles: admins manage the club and account roles; users see only their own profile, memberships, and check-ins.
+- Profile pictures with preview, upload progress, replacement/removal, private retrieval, and persistent WebP storage. See [Profile pictures](Documents/Profile-Pictures.md) for API examples, migration, configuration, and deployment.
 
 Receptionist customer creation, phone-based customer search, extending existing passes, and payment processing still need backend support. Their status and the current application boundaries are described in [Frontend implementation](Documents/Frontend-Implementation.md).
 
@@ -63,6 +64,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/build-css.ps1 -Wat
 dotnet publish FitnessApp/FitnessApp.csproj -c Release -o artifacts/publish
 ```
 
-Publishing compiles minified Tailwind CSS. Configure the production connection string, signing secret, and HTTPS-compatible cookie settings in the hosting environment, then run the published application using the existing deployment process. No schema changes were introduced for the frontend.
+Publishing compiles minified Tailwind CSS. Configure the production connection string, signing secret, and HTTPS-compatible cookie settings, apply the database migrations, and provide a persistent private profile-picture directory before running the published application. See [Profile pictures](Documents/Profile-Pictures.md) for storage settings, Docker volumes, and recovery.
 
 See [Frontend build](Documents/Frontend-Build.md) for CSS build/watch options and offline CI, and [Frontend implementation](Documents/Frontend-Implementation.md) for routes, architecture, integration limits, and verification notes.

@@ -65,6 +65,11 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.Dateofbirth)
                 .HasColumnName("dateofbirth");
 
+            entity.Property(e => e.ProfilePicturePath)
+                .HasColumnName("profilepicturepath")
+                .HasMaxLength(64)
+                .IsConcurrencyToken();
+
             entity.HasIndex(e => e.Email)
                 .IsUnique();
 

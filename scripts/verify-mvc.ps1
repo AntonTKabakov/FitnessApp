@@ -3,12 +3,24 @@ param(
     [ValidateRange(1024, 65535)][int]$Port = 5291,
     [string]$PostgresBin = 'C:\Program Files\PostgreSQL\18\bin',
     [string]$BuildDirectory = 'FitnessApp/bin/Debug/net10.0',
+    [string]$ArtifactsDirectory = 'artifacts/mvc-verification',
+    [string]$MigrationScript,
     [switch]$Cleanup
 )
 
 $ErrorActionPreference = 'Stop'
 $taskRoot = Split-Path -Parent $PSScriptRoot
-$taskArtifacts = Join-Path $taskRoot 'artifacts/mvc-verification'
+$taskArtifactsRoot = [IO.Path]::GetFullPath((Join-Path $taskRoot 'artifacts')).TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
+$taskArtifacts = [IO.Path]::GetFullPath($(if ([IO.Path]::IsPathRooted($ArtifactsDirectory)) { $ArtifactsDirectory } else { Join-Path $taskRoot $ArtifactsDirectory }))
+if (-not $taskArtifacts.StartsWith($taskArtifactsRoot, [StringComparison]::OrdinalIgnoreCase)) {
+    throw 'ArtifactsDirectory must resolve to a directory under this repository''s artifacts directory.'
+}
+if ($MigrationScript -and -not $Cleanup) {
+    $MigrationScript = [IO.Path]::GetFullPath($(if ([IO.Path]::IsPathRooted($MigrationScript)) { $MigrationScript } else { Join-Path $taskRoot $MigrationScript }))
+    if ([IO.Path]::GetExtension($MigrationScript) -ne '.sql' -or -not (Test-Path -LiteralPath $MigrationScript -PathType Leaf)) {
+        throw 'MigrationScript must name an existing local SQL file.'
+    }
+}
 $taskStatePath = Join-Path $taskArtifacts 'state.json'
 New-Item -ItemType Directory -Path $taskArtifacts -Force | Out-Null
 Add-Type -AssemblyName System.Data
@@ -22,7 +34,7 @@ $taskPsql = Join-Path $PostgresBin 'psql.exe'
 $taskPgDump = Join-Path $PostgresBin 'pg_dump.exe'
 if (-not (Test-Path -LiteralPath $taskPsql)) { throw 'PostgreSQL command-line tools were not found; pass -PostgresBin.' }
 $taskPreviousEnvironment = @{}
-foreach ($taskVariable in @('PGHOST', 'PGPORT', 'PGUSER', 'PGPASSWORD', 'PGCLIENTENCODING', 'ASPNETCORE_ENVIRONMENT', 'ConnectionStrings__DefaultConnection', 'AuthCookie__Secure', 'AuthCookie__SameSite')) {
+foreach ($taskVariable in @('PGHOST', 'PGPORT', 'PGUSER', 'PGPASSWORD', 'PGCLIENTENCODING', 'ASPNETCORE_ENVIRONMENT', 'ConnectionStrings__DefaultConnection', 'AuthCookie__Secure', 'AuthCookie__SameSite', 'FileStorage__ProfilePicturesPath', 'Jwt__AccessSecret')) {
     $taskPreviousEnvironment[$taskVariable] = [Environment]::GetEnvironmentVariable($taskVariable)
 }
 $env:PGHOST = [string]$taskConnection['Host']
@@ -91,7 +103,9 @@ try {
         if ($taskState.Database -notmatch '^fitnessapp_ui_verify_[a-f0-9]{12}$' -or $taskState.Database -eq $taskOriginalDatabase) {
             throw 'Refusing to clean up a database that is not an explicitly recorded verification database.'
         }
-        $taskProcess = Get-CimInstance Win32_Process -Filter "ProcessId = $($taskState.ProcessId)" -ErrorAction SilentlyContinue
+        $taskProcess = if ([int]$taskState.ProcessId -gt 0) {
+            Get-CimInstance Win32_Process -Filter "ProcessId = $([int]$taskState.ProcessId)" -ErrorAction SilentlyContinue
+        } else { $null }
         if ($taskProcess) {
             if ($taskProcess.CommandLine -notlike "*$($taskState.ServerAssembly)*" -or $taskProcess.CommandLine -notlike "*$($taskState.BaseUrl)*") {
                 throw 'The recorded process ID now belongs to a different process; cleanup stopped.'
@@ -124,6 +138,10 @@ try {
     $taskState | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $taskStatePath -Encoding UTF8
     & $taskPsql -X --no-psqlrc --set ON_ERROR_STOP=1 --quiet --dbname $taskDatabase --file $taskSchema 1> (Join-Path $taskRunDirectory 'schema-import.log') 2> (Join-Path $taskArtifacts 'postgres-error.log')
     if ($LASTEXITCODE -ne 0) { throw 'Unable to restore the isolated verification schema.' }
+    if ($MigrationScript) {
+        & $taskPsql -X --no-psqlrc --set ON_ERROR_STOP=1 --quiet --dbname $taskDatabase --file $MigrationScript 1> (Join-Path $taskRunDirectory 'migration.log') 2> (Join-Path $taskArtifacts 'postgres-error.log')
+        if ($LASTEXITCODE -ne 0) { throw 'Unable to apply the requested migration to the isolated verification schema.' }
+    }
 
     $taskFixtureSql = @'
 INSERT INTO customers (customerid, fullname, email, password, dateofbirth)
@@ -150,6 +168,10 @@ VALUES (401, 301, (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Sofia') - INTERVAL '1 
     $env:ASPNETCORE_ENVIRONMENT = 'Development'
     $env:AuthCookie__Secure = 'false'
     $env:AuthCookie__SameSite = 'Lax'
+    # The isolated fixture signs its own tokens and never needs the application's real signing secret.
+    $env:Jwt__AccessSecret = [Guid]::NewGuid().ToString('N') + [Guid]::NewGuid().ToString('N')
+    $env:FileStorage__ProfilePicturesPath = Join-Path $taskRunDirectory 'profile-pictures'
+    $taskState['ProfilePicturesPath'] = $env:FileStorage__ProfilePicturesPath
     $taskBuiltApp = if ([IO.Path]::IsPathRooted($BuildDirectory)) { $BuildDirectory } else { Join-Path $taskRoot $BuildDirectory }
     if (-not (Test-Path -LiteralPath (Join-Path $taskBuiltApp 'FitnessApp.dll'))) { throw 'Build the Debug application before running verification.' }
     $taskSnapshot = Join-Path $taskRunDirectory 'app'
@@ -259,7 +281,9 @@ VALUES (401, 301, (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Sofia') - INTERVAL '1 
     $taskResponse = Send-VerificationRequest $taskClient GET '/Customers?query=Maya'
     Assert-Verification 'Customer search filters real database records' ($taskResponse.Status -eq 200 -and $taskResponse.Html -match 'Maya Petrova' -and $taskResponse.Html -notmatch 'Alex Ivanov')
     $taskResponse = Send-VerificationRequest $taskClient GET '/Customers?page=2'
-    Assert-Verification 'Customer pagination renders second-page data' ($taskResponse.Status -eq 200 -and $taskResponse.Html -match 'Verification Member 26')
+    $taskPageTwoNames = (Invoke-VerificationSql $taskDatabase 'SELECT fullname FROM customers ORDER BY fullname, customerid OFFSET 4 LIMIT 4;') -split "`n"
+    $taskPageTwoMatches = @($taskPageTwoNames | Where-Object { $taskResponse.Html.Contains([Net.WebUtility]::HtmlEncode($_.Trim())) }).Count
+    Assert-Verification 'Customer pagination renders second-page data' ($taskResponse.Status -eq 200 -and $taskResponse.Html -match 'Page 2 of' -and $taskPageTwoMatches -eq 4)
     $taskResponse = Send-VerificationRequest $taskClient GET '/Customers?page=2147483647'
     Assert-Verification 'Out-of-range customer pagination clamps safely' ($taskResponse.Status -eq 200 -and $taskResponse.Html -match 'Verification Member 26')
     foreach ($taskRoute in @('/Customers/Details/1001', '/Customers/Purchase/1001', '/Visits', '/Passes', '/Team')) {
@@ -391,7 +415,7 @@ VALUES (401, 301, (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Sofia') - INTERVAL '1 
     $taskClient.Dispose()
     Write-Host "Verification completed: $($taskState.Passed) passed, $($taskState.Failed) failed."
     Write-Host "Isolated server remains available at $taskBaseUrl using $taskDatabase."
-    Write-Host 'Run scripts/verify-mvc.ps1 -Cleanup after browser verification.'
+    Write-Host "Run scripts/verify-mvc.ps1 -ArtifactsDirectory '$ArtifactsDirectory' -Cleanup after browser verification."
     if ($taskState.Failed -gt 0) { exit 1 }
 } finally {
     foreach ($taskVariable in $taskPreviousEnvironment.Keys) {

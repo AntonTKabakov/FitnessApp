@@ -59,7 +59,8 @@ public class ReceptionQueryService(AppDbContext db)
     {
         var customer = await db.Customers.AsNoTracking().Where(x => x.Id == id).Select(x => new CustomerDetailsViewModel
         {
-            Id = x.Id, FullName = x.Fullname, Email = x.Email, DateOfBirth = x.Dateofbirth
+            Id = x.Id, FullName = x.Fullname, Email = x.Email, DateOfBirth = x.Dateofbirth,
+            ProfilePictureUrl = x.ProfilePicturePath == null ? null : "~/api/users/" + x.Id + "/profile-picture?v=" + x.ProfilePicturePath
         }).SingleOrDefaultAsync(ct);
         if (customer == null) return null;
         var today = ReceptionTime.Today;
@@ -129,7 +130,7 @@ public class ReceptionQueryService(AppDbContext db)
         var query = NormalizeQuery(model.Query);
         var source = db.Customerpasses.AsNoTracking()
             .Where(x => x.Expirydate >= today && x.Remainingvisits > 0);
-        if (!customerId.HasValue && !ownerId.HasValue && query == null)
+        if (!customerId.HasValue && !ownerId.HasValue && query == null && !model.CustomerPassId.HasValue)
         {
             model.Passes = [];
             model.Trainers = await Trainers(ct);

@@ -58,3 +58,6 @@ nunit-*.xml
 
 # Local frontend build tools (compiled CSS remains checked in).
 .tools/
+
+# Persistent user uploads must be backed up separately, never published as content.
+FitnessApp/uploads/

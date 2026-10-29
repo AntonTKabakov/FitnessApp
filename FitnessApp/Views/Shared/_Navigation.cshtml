@@ -7,7 +7,8 @@
         (Controller: "Visits", Text: "Check-ins", Icon: "check"),
         (Controller: "Passes", Text: "Gym passes", Icon: "card"),
         (Controller: "Team", Text: "Trainers", Icon: "activity"),
-        (Controller: "Administration", Text: "Account roles", Icon: "users")
+        (Controller: "Administration", Text: "Account roles", Icon: "users"),
+        (Controller: "Member", Text: "My account", Icon: "user")
     } : User.Identity?.IsAuthenticated == true ? new[]
     {
         (Controller: "Member", Text: "My account", Icon: "user"),

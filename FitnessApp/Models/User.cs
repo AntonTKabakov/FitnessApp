@@ -13,6 +13,7 @@ public partial class User
 
     public string Password { get; set; } = string.Empty;
     public string Role { get; set; } = UserRoles.User;
+    public string? ProfilePicturePath { get; set; }
 
     public virtual ICollection<Customerpass> Customerpasses { get; set; }
         = new List<Customerpass>();

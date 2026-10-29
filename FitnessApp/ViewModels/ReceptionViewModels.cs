@@ -54,6 +54,8 @@ public class CustomerDetailsViewModel
     public string FullName { get; set; } = "";
     public string Email { get; set; } = "";
     public DateOnly? DateOfBirth { get; set; }
+    public string? ProfilePictureUrl { get; set; }
+    public bool HasProfilePicture => ProfilePictureUrl != null;
     public List<CustomerPassViewModel> Passes { get; set; } = [];
     public List<VisitRowViewModel> RecentVisits { get; set; } = [];
     public string DisplayName => string.IsNullOrWhiteSpace(FullName) ? Email : FullName;
