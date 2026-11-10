@@ -37,6 +37,9 @@ builder.Services.AddScoped<ICustomerPassService, CustomerPassService>();
 builder.Services.AddScoped<CurrentUser>();
 builder.Services.AddScoped<AccountRoleService>();
 builder.Services.AddScoped<UserProfileService>();
+builder.Services.AddScoped<IStatsService, StatsService>();
+builder.Services.AddSingleton(new PdfReportService(builder.Configuration));
+builder.Services.AddSingleton<ExcelReportService>();
 builder.Services.AddSingleton<IProfilePictureStorageService, LocalProfilePictureStorageService>();
 builder.Services.AddOptions<ProfilePictureStorageOptions>()
     .Bind(builder.Configuration.GetSection(ProfilePictureStorageOptions.SectionName))

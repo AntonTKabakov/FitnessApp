@@ -1,0 +1,114 @@
+@using System.Globalization
+@using System.Text.Json
+@model StatsReportViewModel
+@{
+    var number = CultureInfo.InvariantCulture;
+    var start = Model.Period.Start.ToString("yyyy-MM-dd");
+    var end = Model.Period.End.ToString("yyyy-MM-dd");
+    var cards = new[]
+    {
+        (Label: "Total customers", Value: Model.TotalCustomers.ToString("N0", number), Scope: "All time · all customer accounts", Icon: "users"),
+        (Label: "Active memberships", Value: Model.ActiveMemberships.ToString("N0", number), Scope: "Current · visits remaining, not expired", Icon: "card"),
+        (Label: "Estimated revenue", Value: StatsReportViewModel.Money(Model.AllTimeEstimatedRevenue), Scope: "All time · current pass prices", Icon: "chart"),
+        (Label: "Total check-ins", Value: Model.TotalCheckins.ToString("N0", number), Scope: "All time", Icon: "check"),
+        (Label: "Total trainers", Value: Model.TotalTrainers.ToString("N0", number), Scope: "Current trainer directory", Icon: "activity"),
+        (Label: "Period check-ins", Value: Model.PeriodCheckins.ToString("N0", number), Scope: "Selected reporting period", Icon: "check")
+    };
+}
+
+<div class="mb-5 flex flex-wrap items-center justify-between gap-4">
+    <div>
+        <h2 class="text-lg font-bold text-slate-950">Club overview</h2>
+        <p class="mt-1 text-sm text-slate-500" data-period-label>@Model.Period.Label</p>
+    </div>
+    <div class="flex w-full flex-wrap gap-2 sm:w-auto">
+        @if (Model.PdfAvailable)
+        {
+            <a class="btn btn-secondary flex-1 sm:flex-none" data-stats-export asp-action="ExportPdf" asp-route-range="Custom" asp-route-start="@start" asp-route-end="@end"><partial name="_Icon" model='@("download")' /> PDF report</a>
+        }
+        else { <span class="btn btn-secondary text-slate-500" title="PDF export is unavailable. Contact your administrator.">PDF unavailable</span> }
+        <a class="btn btn-secondary flex-1 sm:flex-none" data-stats-export asp-action="ExportExcel" asp-route-range="Custom" asp-route-start="@start" asp-route-end="@end"><partial name="_Icon" model='@("download")' /> Excel report</a>
+    </div>
+</div>
+
+<div class="mb-6 grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
+    @foreach (var card in cards)
+    {
+        <section class="panel panel-body" aria-label="@card.Label">
+            <div class="mb-4 flex items-center justify-between gap-3"><h3 class="text-sm font-semibold text-slate-600">@card.Label</h3><span class="rounded-xl bg-emerald-50 p-2.5 text-emerald-700"><partial name="_Icon" model="card.Icon" /></span></div>
+            <p class="break-words text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">@card.Value</p>
+            <p class="mt-2 text-xs leading-5 text-slate-500">@card.Scope</p>
+        </section>
+    }
+</div>
+
+<section class="mb-6 rounded-2xl bg-emerald-900 p-5 text-white shadow-sm sm:p-7" aria-label="Selected period summary">
+    <div class="mb-5 flex flex-wrap items-center justify-between gap-2"><h2 class="font-semibold">Selected period</h2><span class="text-sm text-emerald-100">@Model.Period.Label</span></div>
+    <dl class="grid gap-6 sm:grid-cols-3">
+        <div><dt class="text-sm text-emerald-100">Estimated revenue</dt><dd class="mt-2 text-2xl font-bold">@StatsReportViewModel.Money(Model.PeriodEstimatedRevenue)</dd></div>
+        <div><dt class="text-sm text-emerald-100">Membership purchases</dt><dd class="mt-2 text-2xl font-bold">@Model.PeriodPurchases.ToString("N0", number)</dd></div>
+        <div><dt class="text-sm text-emerald-100">Purchasing customers</dt><dd class="mt-2 text-2xl font-bold">@Model.PeriodPurchasingCustomers.ToString("N0", number)</dd></div>
+    </dl>
+</section>
+<p class="notice notice-info mb-6">@StatsReportViewModel.RevenueNote</p>
+<p data-chart-error class="notice notice-info mb-6" hidden>Charts could not load. The complete figures are available in the data tables and reports below.</p>
+
+<div class="grid items-start gap-6 xl:grid-cols-2">
+    <section class="panel" aria-labelledby="revenue-title">
+        <div class="panel-body">
+            <h2 id="revenue-title" class="text-lg font-bold">Monthly estimated revenue</h2>
+            <p class="mt-1 text-sm text-slate-500">Membership sales in EUR · selected dates within each month</p>
+            @if (Model.PeriodPurchases == 0) { <p class="empty-state text-sm text-slate-500">No membership purchases in this period.</p> }
+            else { <div class="relative mt-6 h-72"><canvas data-chart="revenue" role="img" aria-label="Monthly estimated revenue bar chart. Exact values are in the revenue table below."></canvas></div> }
+            <details class="mt-4"><summary class="text-link text-sm">View revenue data</summary>
+                <div class="table-wrap mt-3" tabindex="0" role="region" aria-label="Monthly revenue data"><table class="data-table"><caption class="sr-only">Monthly estimated revenue for @Model.Period.Label</caption><thead><tr><th scope="col">Month</th><th scope="col">Purchases</th><th scope="col">Estimated EUR</th></tr></thead><tbody>
+                @foreach (var item in Model.MonthlyRevenue) { <tr><td>@item.Month.ToString("MMM yyyy")</td><td>@item.Purchases</td><td>@StatsReportViewModel.Money(item.Revenue)</td></tr> }
+                </tbody></table></div>
+            </details>
+        </div>
+    </section>
+    <section class="panel" aria-labelledby="attendance-title">
+        <div class="panel-body">
+            <h2 id="attendance-title" class="text-lg font-bold">Daily attendance</h2>
+            <p class="mt-1 text-sm text-slate-500">@Model.PeriodCheckins.ToString("N0", number) check-ins · selected period</p>
+            @if (Model.PeriodCheckins == 0) { <p class="empty-state text-sm text-slate-500">No check-ins in this period.</p> }
+            else { <div class="relative mt-6 h-72"><canvas data-chart="attendance" role="img" aria-label="Daily attendance line chart. Exact values are in the attendance table below."></canvas></div> }
+            <details class="mt-4"><summary class="text-link text-sm">View attendance data</summary>
+                <div class="table-wrap mt-3 max-h-80" tabindex="0" role="region" aria-label="Daily attendance data"><table class="data-table"><caption class="sr-only">Daily attendance for @Model.Period.Label</caption><thead><tr><th scope="col">Date</th><th scope="col">Check-ins</th></tr></thead><tbody>
+                @foreach (var item in Model.Attendance) { <tr><td>@item.Date.ToString("dd MMM yyyy")</td><td>@item.Checkins</td></tr> }
+                </tbody></table></div>
+            </details>
+        </div>
+    </section>
+    <section class="panel" aria-labelledby="memberships-title">
+        <div class="panel-body">
+            <h2 id="memberships-title" class="text-lg font-bold">Most popular memberships</h2>
+            <p class="mt-1 text-sm text-slate-500">Purchases by pass type · selected period</p>
+            @if (Model.Memberships.Count == 0) { <p class="empty-state text-sm text-slate-500">No membership purchases in this period.</p> }
+            else { <div class="relative mt-6 h-72"><canvas data-chart="memberships" role="img" aria-label="Popular memberships doughnut chart. Exact values are in the membership table below."></canvas></div> }
+            <details class="mt-4"><summary class="text-link text-sm">View membership data</summary>
+                <div class="table-wrap mt-3" tabindex="0" role="region" aria-label="Membership purchase data"><table class="data-table"><caption class="sr-only">Membership purchases for @Model.Period.Label</caption><thead><tr><th scope="col">Pass type</th><th scope="col">Purchases</th><th scope="col">Estimated EUR</th></tr></thead><tbody>
+                @foreach (var item in Model.Memberships) { <tr><td>@item.PassName</td><td>@item.Purchases</td><td>@StatsReportViewModel.Money(item.Revenue)</td></tr> }
+                @if (Model.Memberships.Count == 0) { <tr><td colspan="3">No purchases.</td></tr> }
+                </tbody></table></div>
+            </details>
+        </div>
+    </section>
+    <section class="panel" aria-labelledby="trainers-title">
+        <div class="panel-body">
+            <h2 id="trainers-title" class="text-lg font-bold">Trainer activity</h2>
+            <p class="mt-1 text-sm text-slate-500">Check-ins per trainer · selected period</p>
+            @if (Model.Trainers.Count == 0) { <p class="empty-state text-sm text-slate-500">No trainers in the directory yet.</p> }
+            else { <div class="relative mt-6 h-72 overflow-y-auto"><div data-trainer-chart-container class="relative h-72"><canvas data-chart="trainers" role="img" aria-label="Trainer activity bar chart, including trainers with no check-ins. Exact values are in the trainer table below."></canvas></div></div> }
+            <p class="mt-4 text-xs text-slate-500">@Model.UnassignedCheckins check-ins without a trainer are included in total attendance.</p>
+            <details class="mt-4"><summary class="text-link text-sm">View trainer data</summary>
+                <div class="table-wrap mt-3" tabindex="0" role="region" aria-label="Trainer activity data"><table class="data-table"><caption class="sr-only">Trainer activity for @Model.Period.Label</caption><thead><tr><th scope="col">Trainer</th><th scope="col">Specialty</th><th scope="col">Check-ins</th></tr></thead><tbody>
+                @foreach (var item in Model.Trainers) { <tr><td>@item.TrainerName</td><td>@item.Specialty</td><td>@item.Checkins</td></tr> }
+                @if (Model.Trainers.Count == 0) { <tr><td colspan="3">No trainers.</td></tr> }
+                </tbody></table></div>
+            </details>
+        </div>
+    </section>
+</div>
+<p class="mt-6 text-xs leading-5 text-slate-500">Snapshot generated @Model.GeneratedAt.ToString("dd MMM yyyy HH:mm:ss") · Europe/Sofia. Customer totals include administrator accounts, matching the customer directory. Purchasing customers are distinct buyers during this period.</p>
+<script type="application/json" data-stats-report>@Html.Raw(JsonSerializer.Serialize(Model, new JsonSerializerOptions(JsonSerializerDefaults.Web)))</script>
