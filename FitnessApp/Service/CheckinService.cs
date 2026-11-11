@@ -3,6 +3,9 @@ using FitnessApp.DTO.CheckinDTOs;
 using FitnessApp.Filters;
 using FitnessApp.Models;
 using FitnessApp.Service.Interfaces;
+using FitnessApp.ViewModels;
+using System.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace FitnessApp.Service;
 
@@ -70,60 +73,62 @@ public class CheckinService : ICheckinService
         return checkin;
     }
 
-    public int? Create(CheckinEditDTO checkin)
+    public async Task<int?> CreateAsync(
+    CheckinEditDTO checkin,
+    CancellationToken cancellationToken = default)
     {
-        var now = FitnessApp.ViewModels.ReceptionTime.Now;
+        await using var transaction =
+            await _context.Database.BeginTransactionAsync(
+                IsolationLevel.Serializable,
+                cancellationToken);
+    
+        var now = ReceptionTime.Now;
         var today = DateOnly.FromDateTime(now);
+    
         var dayStart = now.Date;
         var dayEnd = dayStart.AddDays(1);
-        Customerpass? customerPass = _context.Customerpasses
-            .Where(x => x.Customerpassid == checkin.CustomerPassId)
-            .FirstOrDefault();
-
-        if (customerPass == null)
+    
+        var customerPass = await _context.Customerpasses
+            .FirstOrDefaultAsync(
+                x => x.Customerpassid == checkin.CustomerPassId,
+                cancellationToken);
+    
+        if (customerPass == null ||
+            customerPass.Expirydate < today ||
+            customerPass.Remainingvisits <= 0)
         {
             return null;
         }
-
-        if (customerPass.Expirydate < today)
-        {
-            return null;
-        }
-
-        if (customerPass.Remainingvisits <= 0)
-        {
-            return null;
-        }
-
-        bool alreadyCheckedToday = _context.Checkins.Any(x =>
-            x.Customerpassid == checkin.CustomerPassId &&
-            x.Checkindatetime >= dayStart && x.Checkindatetime < dayEnd);
-
+    
+        bool alreadyCheckedToday = await _context.Checkins.AnyAsync(
+            x => x.Customerpassid == checkin.CustomerPassId &&
+                 x.Checkindatetime >= dayStart &&
+                 x.Checkindatetime < dayEnd,
+            cancellationToken);
+    
         if (alreadyCheckedToday)
         {
             return null;
         }
-
-        Checkin entity = new Checkin();
-
-        entity.Customerpassid = checkin.CustomerPassId;
-        entity.Checkindatetime = now;
-        entity.Trainerid = checkin.TrainerId;
-
+    
+        var entity = new Checkin
+        {
+            Customerpassid = checkin.CustomerPassId,
+            Checkindatetime = now,
+            Trainerid = checkin.TrainerId
+        };
+    
         customerPass.Remainingvisits--;
-
-        try
-        {
-            _context.Checkins.Add(entity);
-            _context.SaveChanges();
-        }
-        catch (Exception)
-        {
-            return null;
-        }
-
+    
+        _context.Checkins.Add(entity);
+    
+        await _context.SaveChangesAsync(cancellationToken);
+    
+        await transaction.CommitAsync(cancellationToken);
+    
         return entity.Checkinid;
     }
+
 
     public bool Update(CheckinEditDTO checkin)
     {

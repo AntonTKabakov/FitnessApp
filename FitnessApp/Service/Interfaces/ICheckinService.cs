@@ -9,7 +9,9 @@ public interface ICheckinService
 
     public CheckinResponseDTO? GetOne(int id);
 
-    public int? Create(CheckinEditDTO checkin);
+    public Task<int?> CreateAsync(
+        CheckinEditDTO checkin,
+        CancellationToken cancellationToken = default);
 
     public bool Update(CheckinEditDTO checkin);
 
