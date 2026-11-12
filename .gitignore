@@ -61,3 +61,5 @@ nunit-*.xml
 
 # Persistent user uploads must be backed up separately, never published as content.
 FitnessApp/uploads/
+/FitnessApp/appsettings.Development.json
+/.vs/FitnessApp.slnx
