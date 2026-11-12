@@ -8,6 +8,7 @@ using FitnessApp.Models;
 using FitnessApp.Service;
 using FitnessApp.Service.Interfaces;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -42,11 +43,14 @@ public sealed class FitnessAppFactory : WebApplicationFactory<Program>
             ["AuthCookie:SameSite"] = "Lax",
             ["AdminBootstrap:Email"] = "",
             ["FileStorage:ProfilePicturesPath"] = Pictures,
+            ["ErrorLogging:DirectoryPath"] = Path.Combine(Root, "logs"),
             ["FileStorage:MaxProfilePictureSizeMB"] = "5",
             ["Logging:LogLevel:Default"] = "Warning"
         }));
         builder.ConfigureTestServices(services =>
         {
+            // Isolate antiforgery keys from the host user's persisted Windows/DPAPI key ring.
+            services.AddDataProtection().UseEphemeralDataProtectionProvider();
             services.RemoveAll<DbContextOptions<AppDbContext>>();
             services.RemoveAll<IDbContextOptionsConfiguration<AppDbContext>>();
             services.AddDbContext<AppDbContext>(options => options.UseSqlite("Data Source=" + Path.Combine(Root, "tests.db"))
@@ -68,7 +72,8 @@ public sealed class FitnessAppFactory : WebApplicationFactory<Program>
             ["AuthCookie:Secure"] = "true",
             ["AuthCookie:SameSite"] = "Lax",
             ["AdminBootstrap:Email"] = "",
-            ["FileStorage:ProfilePicturesPath"] = Pictures
+            ["FileStorage:ProfilePicturesPath"] = Pictures,
+            ["ErrorLogging:DirectoryPath"] = Path.Combine(Root, "logs")
         }));
         var host = base.CreateHost(builder);
         using var scope = host.Services.CreateScope();

@@ -12,6 +12,7 @@ A fitness management system for gym reception: find customers, inspect membershi
 - Account registration, sign-in, session renewal, and sign-out through the existing JWT and refresh-token services.
 - Admin/User roles: admins manage the club and account roles; users see only their own profile, memberships, and check-ins.
 - Profile pictures with preview, upload progress, replacement/removal, private retrieval, and persistent WebP storage. See [Profile pictures](Documents/Profile-Pictures.md) for API examples, migration, configuration, and deployment.
+- Global error handling with safe JSON responses, styled 404/500 pages, private daily error logs, and automated service tests. See [Error handling and testing](Documents/Error-Handling-and-Testing.md) for configuration, test commands, coverage, and file inventory.
 
 Receptionist customer creation, phone-based customer search, extending existing passes, and payment processing still need backend support. Their status and the current application boundaries are described in [Frontend implementation](Documents/Frontend-Implementation.md).
 
