@@ -76,15 +76,8 @@ public class GympassService : IGympassService
         entity.Validitydays = pass.ValidityDays;
         
         
-        try
-        {
-            _context.Gympasses.Add(entity);
-            _context.SaveChanges();
-        }
-        catch (Exception e)
-        {
-            return null;
-        }
+        _context.Gympasses.Add(entity);
+        _context.SaveChanges();
         
         return entity.Passtypeid;
     }

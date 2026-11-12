@@ -1,0 +1,9 @@
+@model ErrorViewModel
+@{ ViewData["Title"] = "Page not found"; }
+<div class="panel mx-auto max-w-xl"><div class="panel-body py-12">
+    <span class="badge badge-neutral">404 · Page not found</span>
+    <h1 class="page-heading mt-5">We couldn’t find this page</h1>
+    <p class="page-description">The page may have moved or the address may be incorrect. Return to the dashboard to continue.</p>
+    @if (Model.ShowRequestId) { <p class="mt-5 break-all text-xs text-slate-500">Reference: @Model.RequestId</p> }
+    <a class="btn btn-primary mt-7" asp-controller="Home" asp-action="Index">Back to dashboard</a>
+</div></div>

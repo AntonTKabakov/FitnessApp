@@ -45,7 +45,7 @@ public class CheckinController(ICheckinService service, AppDbContext db, Current
     {
         if (!currentUser.IsAdmin && !await db.Customerpasses.AnyAsync(
             x => x.Customerpassid == checkin.CustomerPassId && x.Customerid == currentUser.Id, cancellationToken)) return NotFound();
-        var result = await _service.CreateAsync(checkin);
+        var result = await _service.CreateAsync(checkin, cancellationToken);
 
         if (result == null)
         {

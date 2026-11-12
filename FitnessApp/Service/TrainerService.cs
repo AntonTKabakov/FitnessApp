@@ -59,15 +59,8 @@ public class TrainerService : ITrainerService
         entity.Specialty = trainer.Specialty;
         entity.Phone = trainer.Phone;
 
-        try
-        {
-            _context.Trainers.Add(entity);
-            _context.SaveChanges();
-        }
-        catch (Exception e)
-        {
-            return null;
-        }
+        _context.Trainers.Add(entity);
+        _context.SaveChanges();
         
         return entity.Trainerid;
     }

@@ -3,6 +3,9 @@ using FitnessApp.Data;
 using FitnessApp.Models;
 using FitnessApp.Service;
 using FitnessApp.Service.Interfaces;
+using FitnessApp.Filters;
+using FitnessApp.Logging;
+using FitnessApp.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authorization;
@@ -14,10 +17,19 @@ using System.Security.Claims;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+// All configured output passes through the same secret redaction, including the console.
+builder.Logging.ClearProviders();
 
 // MVC
 builder.Services.AddControllersWithViews(options =>
-    options.Filters.Add(new ResponseCacheAttribute { NoStore = true, Location = ResponseCacheLocation.None }));
+{
+    options.Filters.Add(new ResponseCacheAttribute { NoStore = true, Location = ResponseCacheLocation.None });
+    options.Filters.Add<ApiErrorResponseFilter>();
+    options.Filters.Add<ApiValidationFilter>();
+});
+builder.Services.AddOptions<ErrorFileLoggerOptions>()
+    .Bind(builder.Configuration.GetSection(ErrorFileLoggerOptions.SectionName));
+builder.Services.AddSingleton<ILoggerProvider, ErrorFileLoggerProvider>();
 
 // Database
 var connectionString = builder.Configuration
@@ -69,6 +81,8 @@ builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        // A challenge must not include token validation exceptions in response headers.
+        options.IncludeErrorDetails = false;
         options.TokenValidationParameters =
             new TokenValidationParameters
             {
@@ -191,9 +205,12 @@ if (builder.Configuration.GetValue<bool>("bootstrap-admin-only"))
 }
 
 // HTTP pipeline
+app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
+app.UseStatusCodePages(async statusContext =>
+    await ErrorResponse.WriteAsync(statusContext.HttpContext, statusContext.HttpContext.Response.StatusCode));
+
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Home/Error");
     app.UseHsts();
 }
 
@@ -212,6 +229,13 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
+
+// Only unmatched requests are anonymous; application endpoints retain their authorization policies.
+app.MapFallback("{**path}", context =>
+{
+    context.Response.StatusCode = StatusCodes.Status404NotFound;
+    return Task.CompletedTask;
+}).AllowAnonymous();
 
 app.Run();
 

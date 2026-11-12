@@ -1,7 +1,6 @@
 using FitnessApp.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Diagnostics;
 using FitnessApp.Filters;
 using FitnessApp.Service;
 
@@ -26,7 +25,8 @@ namespace FitnessApp.Controllers
         [AllowAnonymous]
         public IActionResult Error()
         {
-            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+            Response.StatusCode = StatusCodes.Status500InternalServerError;
+            return View(new ErrorViewModel { RequestId = HttpContext.TraceIdentifier });
         }
     }
 }

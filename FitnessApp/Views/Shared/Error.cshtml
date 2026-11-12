@@ -1,7 +1,7 @@
 ﻿@model ErrorViewModel
 @{ ViewData["Title"] = "Something went wrong"; }
 <div class="panel mx-auto max-w-xl"><div class="panel-body py-12">
-    <span class="badge badge-danger">Request failed</span>
+    <span class="badge badge-danger">500 · Request failed</span>
     <h1 class="page-heading mt-5">Something went wrong</h1>
     <p class="page-description">We couldn’t complete this request. Please try again or contact your administrator.</p>
     @if (Model.ShowRequestId) { <p class="mt-5 break-all text-xs text-slate-500">Reference: @Model.RequestId</p> }

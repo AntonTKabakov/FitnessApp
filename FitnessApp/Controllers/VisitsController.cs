@@ -50,7 +50,7 @@ public class VisitsController(ReceptionQueryService queries, ICheckinService che
                 ModelState.AddModelError(nameof(model.TrainerId), "Choose an available trainer.");
             if (ModelState.IsValid)
             {
-                var id = checkins.Create(new CheckinEditDTO { CustomerPassId = model.CustomerPassId!.Value, TrainerId = model.TrainerId });
+                var id = await checkins.CreateAsync(new CheckinEditDTO { CustomerPassId = model.CustomerPassId!.Value, TrainerId = model.TrainerId }, cancellationToken);
                 if (id.HasValue)
                 {
                     TempData["Success"] = "Entry confirmed. One visit has been deducted from the pass.";

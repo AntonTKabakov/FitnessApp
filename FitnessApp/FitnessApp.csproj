@@ -33,6 +33,8 @@
     <!-- Uploaded private images belong to persistent runtime storage, never publish output. -->
     <Content Remove="uploads/**" />
     <None Remove="uploads/**" />
+    <Content Remove="logs/**" />
+    <None Remove="logs/**" />
   </ItemGroup>
 
   <ItemGroup>
