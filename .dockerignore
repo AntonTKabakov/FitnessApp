@@ -1,0 +1,11 @@
+**/bin
+**/obj
+**/node_modules
+**/dist
+.git
+.vs
+artifacts
+TestResults
+**/uploads
+**/logs
+**/.env.local

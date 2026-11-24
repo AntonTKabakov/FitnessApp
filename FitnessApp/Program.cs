@@ -1,241 +1,127 @@
-
+using System.Text;
 using FitnessApp.Data;
 using FitnessApp.Models;
+using FitnessApp.Repositories;
 using FitnessApp.Service;
 using FitnessApp.Service.Interfaces;
-using FitnessApp.Filters;
-using FitnessApp.Logging;
-using FitnessApp.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using System.Security.Claims;
-using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
-// All configured output passes through the same secret redaction, including the console.
+// Avoid the Windows Event Log provider in local development; it can terminate the host
+// when the process cannot write to the machine event log.
 builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
 
-// MVC
-builder.Services.AddControllersWithViews(options =>
-{
-    options.Filters.Add(new ResponseCacheAttribute { NoStore = true, Location = ResponseCacheLocation.None });
-    options.Filters.Add<ApiErrorResponseFilter>();
-    options.Filters.Add<ApiValidationFilter>();
-});
-builder.Services.AddOptions<ErrorFileLoggerOptions>()
-    .Bind(builder.Configuration.GetSection(ErrorFileLoggerOptions.SectionName));
-builder.Services.AddSingleton<ILoggerProvider, ErrorFileLoggerProvider>();
-
-// Database
-var connectionString = builder.Configuration
-    .GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException(
-        "Connection string 'DefaultConnection' was not configured.");
-
+// Configure the data source.
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(connectionString));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Existing services
+// Configure the CORS policy for frontend integration
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Frontend", policy =>
+    {
+        policy.WithOrigins(
+            "http://localhost:5173", // Vite dev server
+            "http://localhost:8080") // Production URL (example)
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
+// Add CORS middleware to the request pipeline.
+builder.Services.AddCors();
+
+var jwt = JwtSettings.FromConfiguration(builder.Configuration);
+var cookieSettings = AuthCookieSettings.FromConfiguration(builder.Configuration, builder.Environment);
+builder.Services.AddSingleton(jwt);
+builder.Services.AddSingleton(cookieSettings);
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<CurrentUser>();
+builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<TokenService>();
+builder.Services.AddScoped<PasswordHasher<User>>();
+builder.Services.AddScoped<AccountRoleService>();
+builder.Services.AddScoped<ReceptionQueryService>();
+builder.Services.AddScoped<UserProfileService>();
+builder.Services.Configure<ProfilePictureStorageOptions>(builder.Configuration.GetSection("FileStorage"));
+builder.Services.AddSingleton<IProfilePictureStorageService, LocalProfilePictureStorageService>();
+builder.Services.AddScoped<ICustomerPassRepository, CustomerPassRepository>();
+builder.Services.AddScoped<ICustomerPassService, CustomerPassService>();
+builder.Services.AddScoped<ICheckinRepository, CheckinRepository>();
+builder.Services.AddScoped<ICheckinService, CheckinService>();
 builder.Services.AddScoped<ITrainerService, TrainerService>();
 builder.Services.AddScoped<IGympassService, GympassService>();
-builder.Services.AddScoped<ICheckinService, CheckinService>();
-builder.Services.AddScoped<ReceptionQueryService>();
-builder.Services.AddScoped<ICustomerPassService, CustomerPassService>();
-builder.Services.AddScoped<CurrentUser>();
-builder.Services.AddScoped<AccountRoleService>();
-builder.Services.AddScoped<UserProfileService>();
 builder.Services.AddScoped<IStatsService, StatsService>();
-builder.Services.AddSingleton(new PdfReportService(builder.Configuration));
-builder.Services.AddSingleton<ExcelReportService>();
-builder.Services.AddSingleton<IProfilePictureStorageService, LocalProfilePictureStorageService>();
-builder.Services.AddOptions<ProfilePictureStorageOptions>()
-    .Bind(builder.Configuration.GetSection(ProfilePictureStorageOptions.SectionName))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
+builder.Services.AddScoped<ReportExportService>();
+builder.Services.AddScoped<IReportExportStrategy, ExcelReportService>();
+builder.Services.AddScoped<IReportExportStrategy, PdfReportService>();
 builder.Services.AddAntiforgery(options => options.HeaderName = "RequestVerificationToken");
-
-// Authentication services
-var jwtSettings = JwtSettings.FromConfiguration(
-    builder.Configuration);
-
-var authCookieSettings = AuthCookieSettings.FromConfiguration(
-    builder.Configuration,
-    builder.Environment);
-
-builder.Services.AddSingleton(jwtSettings);
-builder.Services.AddSingleton(authCookieSettings);
-
-builder.Services.AddScoped<TokenService>();
-builder.Services.AddScoped<AuthService>();
-
-builder.Services.AddScoped<PasswordHasher<User>>();
-builder.Services.AddHttpContextAccessor();
-
-// JWT Authentication using cookies
-builder.Services
-    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        // A challenge must not include token validation exceptions in response headers.
-        options.IncludeErrorDetails = false;
-        options.TokenValidationParameters =
-            new TokenValidationParameters
-            {
-                ValidateIssuerSigningKey = true,
-
-                IssuerSigningKey = new SymmetricSecurityKey(
-                    Encoding.UTF8.GetBytes(jwtSettings.AccessSecret)),
-
-                // Match the current TokenService implementation
-                ValidateIssuer = false,
-                ValidateAudience = false,
-
-                ValidateLifetime = true,
-
-                RequireExpirationTime = true,
-                RequireSignedTokens = true,
-
-                ClockSkew = TimeSpan.Zero,
-
-                NameClaimType = ClaimTypes.NameIdentifier,
-                RoleClaimType = ClaimTypes.Role
-            };
-
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = false,
+            ValidateAudience = false,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.AccessSecret)),
+            ValidateLifetime = true,
+            NameClaimType = System.Security.Claims.ClaimTypes.NameIdentifier,
+            RoleClaimType = System.Security.Claims.ClaimTypes.Role
+        };
         options.Events = new JwtBearerEvents
         {
             OnTokenValidated = async context =>
             {
-                var identity = context.Principal?.Identity as ClaimsIdentity;
-                if (!int.TryParse(context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier), out var id))
+                var identity = context.Principal?.Identity as System.Security.Claims.ClaimsIdentity;
+                var idClaim = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (identity == null || !int.TryParse(idClaim, out var id))
                 {
                     context.Fail("Invalid account.");
                     return;
                 }
+
                 var db = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
                 var account = await db.Users.AsNoTracking().Where(x => x.Id == id)
-                    .Select(x => new { x.Role, x.Fullname }).SingleOrDefaultAsync(context.HttpContext.RequestAborted);
-                if (identity == null || account == null || !UserRoles.IsValid(account.Role))
+                    .Select(x => new { x.Role }).SingleOrDefaultAsync(context.HttpContext.RequestAborted);
+                if (account == null || !UserRoles.IsValid(account.Role))
                 {
                     context.Fail("Account no longer exists.");
                     return;
                 }
-                // Read the current role so demotion takes effect even for an unexpired JWT.
-                foreach (var claim in identity.FindAll(ClaimTypes.Role).ToList()) identity.RemoveClaim(claim);
-                identity.AddClaim(new Claim(ClaimTypes.Role, account.Role));
-                identity.AddClaim(new Claim(ClaimTypes.GivenName, account.Fullname));
-            },
-            OnChallenge = context =>
-            {
-                var action = context.HttpContext.GetEndpoint()?.Metadata.GetMetadata<ControllerActionDescriptor>();
-                if (action != null && typeof(Controller).IsAssignableFrom(action.ControllerTypeInfo) &&
-                    (HttpMethods.IsGet(context.Request.Method) || HttpMethods.IsHead(context.Request.Method)))
-                {
-                    context.HandleResponse();
-                    var returnUrl = context.Request.PathBase + context.Request.Path + context.Request.QueryString;
-                    context.Response.Redirect("/Account/Login" + QueryString.Create("returnUrl", returnUrl));
-                }
-                return Task.CompletedTask;
-            },
-            OnForbidden = context =>
-            {
-                var action = context.HttpContext.GetEndpoint()?.Metadata.GetMetadata<ControllerActionDescriptor>();
-                if (action != null && typeof(Controller).IsAssignableFrom(action.ControllerTypeInfo))
-                    context.Response.Redirect("/Account/AccessDenied");
-                return Task.CompletedTask;
+
+                foreach (var claim in identity.FindAll(System.Security.Claims.ClaimTypes.Role).ToArray())
+                    identity.RemoveClaim(claim);
+                identity.AddClaim(new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, account.Role));
             },
             OnMessageReceived = context =>
             {
-                // Get JWT from HTTP-only cookie
-                if (context.Request.Cookies.TryGetValue(
-                        "access_token", out var token))
-                {
-                    context.Token = token;
-                }
-
+                if (context.Request.Cookies.TryGetValue("access_token", out var token)) context.Token = token;
                 return Task.CompletedTask;
             }
         };
     });
+builder.Services.AddAuthorization();
 
-builder.Services.AddAuthorization(options =>
-{
-    options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build();
-});
+builder.Services.AddControllersWithViews();
 
 var app = builder.Build();
 
-// Validate the private storage location at startup, before accepting requests.
-_ = app.Services.GetRequiredService<IProfilePictureStorageService>();
+// Configure the HTTP request pipeline.
+app.MapStaticAssets().AllowAnonymous();
 
-// Explicit, one-time setup. Never promote the first registrant or accept a role from registration.
-var adminEmail = builder.Configuration["AdminBootstrap:Email"]?.Trim().ToLowerInvariant();
-if (!string.IsNullOrWhiteSpace(adminEmail))
-{
-    await using var scope = app.Services.CreateAsyncScope();
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    if (!await db.Users.AnyAsync(x => x.Role == UserRoles.Admin))
-    {
-        var account = await db.Users.SingleOrDefaultAsync(x => x.Email == adminEmail);
-        if (account == null)
-        {
-            var password = builder.Configuration["AdminBootstrap:Password"];
-            if (string.IsNullOrWhiteSpace(password))
-                throw new InvalidOperationException("AdminBootstrap:Password is required to create the first administrator.");
-            account = new User
-            {
-                Email = adminEmail,
-                Fullname = builder.Configuration["AdminBootstrap:Name"]?.Trim() ?? "Admin"
-            };
-            account.Password = scope.ServiceProvider.GetRequiredService<PasswordHasher<User>>().HashPassword(account, password);
-            db.Users.Add(account);
-        }
-        account.Role = UserRoles.Admin;
-        await db.SaveChangesAsync();
-    }
-}
-if (builder.Configuration.GetValue<bool>("bootstrap-admin-only"))
-{
-    await app.DisposeAsync();
-    return;
-}
-
-// HTTP pipeline
-app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
-app.UseStatusCodePages(async statusContext =>
-    await ErrorResponse.WriteAsync(statusContext.HttpContext, statusContext.HttpContext.Response.StatusCode));
-
-if (!app.Environment.IsDevelopment())
-{
-    app.UseHsts();
-}
-
-app.UseHttpsRedirection();
-
-app.UseRouting();
-
-// Authenticate before authorization
+app.UseCors("Frontend");
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapStaticAssets().AllowAnonymous();
+// REST endpoints declare their complete paths with attribute routing.
 app.MapControllers();
-
-app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}")
-    .WithStaticAssets();
-
-// Only unmatched requests are anonymous; application endpoints retain their authorization policies.
-app.MapFallback("{**path}", context =>
-{
-    context.Response.StatusCode = StatusCodes.Status404NotFound;
-    return Task.CompletedTask;
-}).AllowAnonymous();
 
 app.Run();
 

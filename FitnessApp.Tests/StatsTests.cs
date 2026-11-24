@@ -225,7 +225,7 @@ public sealed class StatsTests
             await SeedAsync(db);
             var pdf = new PdfReportService(new ConfigurationBuilder().AddInMemoryCollection(
                 new Dictionary<string, string?> { ["Reporting:QuestPdfLicense"] = "Community" }).Build());
-            VerifyReport(await new StatsService(db, pdf).GetReportAsync(Period, TestContext.Current.CancellationToken));
+            VerifyReport(await new StatsService(db, new ReportExportService([pdf, new ExcelReportService()])).GetReportAsync(Period, TestContext.Current.CancellationToken));
         }
         finally
         {

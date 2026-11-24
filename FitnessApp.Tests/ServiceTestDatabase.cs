@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FitnessApp.Tests;
 
-// The services use DbContext directly. SQLite exercises their relational queries and
+// SQLite exercises service/repository relational queries and
 // transactions without mocking EF query providers or contacting PostgreSQL.
 internal sealed class ServiceTestDatabase : IDisposable
 {

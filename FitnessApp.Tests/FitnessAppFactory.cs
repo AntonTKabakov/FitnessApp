@@ -26,6 +26,7 @@ namespace FitnessApp.Tests;
 // This fixture never connects to the application's configured PostgreSQL database.
 public sealed class FitnessAppFactory : WebApplicationFactory<Program>
 {
+    public bool UseLegacyMvc { get; init; } = true;
     public const string Password = "Picture-test-password!42";
     public string Root { get; } = Path.Combine(Path.GetTempPath(), "fitness-picture-tests-" + Guid.NewGuid().ToString("N"));
     public string Pictures => Path.Combine(Root, "pictures");
@@ -37,6 +38,8 @@ public sealed class FitnessAppFactory : WebApplicationFactory<Program>
         builder.UseEnvironment("Testing");
         builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
+            ["LegacyMvc:Enabled"] = UseLegacyMvc.ToString(),
+            ["Frontend:AllowedOrigins:0"] = "http://localhost:5173",
             ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=unused_test_database;Username=unused",
             ["Jwt:AccessSecret"] = "isolated-profile-picture-tests-secret-at-least-32-bytes",
             ["AuthCookie:Secure"] = "true",
@@ -67,6 +70,8 @@ public sealed class FitnessAppFactory : WebApplicationFactory<Program>
         // Host configuration is passed to the application's entry point before it runs.
         builder.ConfigureHostConfiguration(configuration => configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
+            ["LegacyMvc:Enabled"] = UseLegacyMvc.ToString(),
+            ["Frontend:AllowedOrigins:0"] = "http://localhost:5173",
             ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=unused_test_database;Username=unused",
             ["Jwt:AccessSecret"] = "isolated-profile-picture-tests-secret-at-least-32-bytes",
             ["AuthCookie:Secure"] = "true",
@@ -90,9 +95,15 @@ public sealed class FitnessAppFactory : WebApplicationFactory<Program>
     {
         var client = NewClient();
         var email = Guid.NewGuid().ToString("N") + "@pictures.test";
-        var response = await client.PostAsJsonAsync("/auth/register", new
+        if (!UseLegacyMvc)
         {
-            email, password = Password, username = "Picture member", dateofbirth = "1990-01-01", role = "Admin"
+            using var csrf = await client.GetAsync("/api/session/antiforgery");
+            using var document = JsonDocument.Parse(await csrf.Content.ReadAsStringAsync());
+            client.DefaultRequestHeaders.Add("RequestVerificationToken", document.RootElement.GetProperty("token").GetString());
+        }
+        var response = await client.PostAsJsonAsync(UseLegacyMvc ? "/auth/register" : "/api/session/registration", new
+        {
+            email, password = Password, confirmPassword = Password, fullName = "Picture member", username = "Picture member", dateofbirth = "1990-01-01", role = "Admin"
         });
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         using var result = JsonDocument.Parse(await response.Content.ReadAsStringAsync());

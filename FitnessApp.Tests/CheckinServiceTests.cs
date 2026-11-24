@@ -1,3 +1,4 @@
+using FitnessApp.Repositories;
 using FitnessApp.DTO.CheckinDTOs;
 using FitnessApp.Models;
 using FitnessApp.Service;
@@ -18,7 +19,7 @@ public sealed class CheckinServiceTests : IDisposable
         var trainer = new Trainer { Fullname = "Trainer", Phone = "000", Specialty = "Strength" };
         database.Db.Trainers.Add(trainer);
         await database.Db.SaveChangesAsync(TestContext.Current.CancellationToken);
-        var service = new CheckinService(database.Db);
+        var service = new CheckinService(new CheckinRepository(database.Db));
         var before = ReceptionTime.Now;
 
         // Act
@@ -41,7 +42,7 @@ public sealed class CheckinServiceTests : IDisposable
     [Fact]
     public async Task Create_with_nonexistent_pass_returns_null_without_recording_a_visit()
     {
-        var service = new CheckinService(database.Db);
+        var service = new CheckinService(new CheckinRepository(database.Db));
 
         var id = await service.CreateAsync(new CheckinEditDTO { CustomerPassId = 123 }, TestContext.Current.CancellationToken);
 
@@ -53,7 +54,7 @@ public sealed class CheckinServiceTests : IDisposable
     public async Task Create_with_expired_pass_preserves_remaining_visits()
     {
         var pass = database.AddPass(expires: DateOnly.MinValue);
-        var service = new CheckinService(database.Db);
+        var service = new CheckinService(new CheckinRepository(database.Db));
 
         var id = await service.CreateAsync(new CheckinEditDTO { CustomerPassId = pass.Customerpassid }, TestContext.Current.CancellationToken);
 
@@ -68,7 +69,7 @@ public sealed class CheckinServiceTests : IDisposable
     public async Task Create_with_no_remaining_visits_does_not_create_or_consume_a_visit(int visits)
     {
         var pass = database.AddPass(remainingVisits: visits);
-        var service = new CheckinService(database.Db);
+        var service = new CheckinService(new CheckinRepository(database.Db));
 
         var id = await service.CreateAsync(new CheckinEditDTO { CustomerPassId = pass.Customerpassid }, TestContext.Current.CancellationToken);
 
@@ -88,7 +89,7 @@ public sealed class CheckinServiceTests : IDisposable
             Customerpassid = pass.Customerpassid, Checkindatetime = today.AddDays(offset).AddHours(12)
         }));
         await database.Db.SaveChangesAsync(TestContext.Current.CancellationToken);
-        var service = new CheckinService(database.Db);
+        var service = new CheckinService(new CheckinRepository(database.Db));
 
         var id = await service.CreateAsync(new CheckinEditDTO { CustomerPassId = pass.Customerpassid }, TestContext.Current.CancellationToken);
 
@@ -106,7 +107,7 @@ public sealed class CheckinServiceTests : IDisposable
             Customerpassid = pass.Customerpassid, Checkindatetime = ReceptionTime.Now.Date.AddDays(-2)
         });
         await database.Db.SaveChangesAsync(TestContext.Current.CancellationToken);
-        var service = new CheckinService(database.Db);
+        var service = new CheckinService(new CheckinRepository(database.Db));
 
         var id = await service.CreateAsync(new CheckinEditDTO { CustomerPassId = pass.Customerpassid }, TestContext.Current.CancellationToken);
 
@@ -122,7 +123,7 @@ public sealed class CheckinServiceTests : IDisposable
         var visit = new Checkin { Customerpassid = pass.Customerpassid, Checkindatetime = new DateTime(2020, 1, 1) };
         database.Db.Checkins.Add(visit);
         database.Db.SaveChanges();
-        var service = new CheckinService(database.Db);
+        var service = new CheckinService(new CheckinRepository(database.Db));
 
         var deleted = service.Delete(visit.Checkinid);
         var deletedAgain = service.Delete(visit.Checkinid);
@@ -138,13 +139,56 @@ public sealed class CheckinServiceTests : IDisposable
     public void Update_with_nonexistent_checkin_returns_false_without_changing_pass()
     {
         var pass = database.AddPass();
-        var service = new CheckinService(database.Db);
+        var service = new CheckinService(new CheckinRepository(database.Db));
 
         var updated = service.Update(new CheckinEditDTO { CheckinId = 123, CustomerPassId = pass.Customerpassid });
 
         Assert.False(updated);
         Assert.Empty(database.Db.Checkins);
         Assert.Equal(3, pass.Remainingvisits);
+    }
+
+    [Fact]
+    public async Task Create_with_missing_trainer_does_not_consume_a_visit()
+    {
+        var pass = database.AddPass();
+        var service = new CheckinService(new CheckinRepository(database.Db));
+        Assert.Null(await service.CreateAsync(new CheckinEditDTO { CustomerPassId = pass.Customerpassid, TrainerId = 123 }, TestContext.Current.CancellationToken));
+        Assert.Equal(3, pass.Remainingvisits);
+        Assert.Empty(database.Db.Checkins);
+    }
+
+    [Fact]
+    public void Update_preserves_membership_and_time_and_accepts_unchanged_trainer()
+    {
+        var pass = database.AddPass();
+        var visit = new Checkin { Customerpassid = pass.Customerpassid, Checkindatetime = new DateTime(2020, 1, 1) };
+        database.Db.Checkins.Add(visit);
+        database.Db.SaveChanges();
+        var service = new CheckinService(new CheckinRepository(database.Db));
+        Assert.False(service.Update(new CheckinEditDTO { CheckinId = visit.Checkinid, CustomerPassId = 123, CheckinDateTime = visit.Checkindatetime }));
+        Assert.False(service.Update(new CheckinEditDTO { CheckinId = visit.Checkinid, CustomerPassId = pass.Customerpassid, CheckinDateTime = visit.Checkindatetime.AddDays(1) }));
+        Assert.True(service.Update(new CheckinEditDTO { CheckinId = visit.Checkinid, CustomerPassId = pass.Customerpassid, CheckinDateTime = visit.Checkindatetime }));
+        Assert.Equal(pass.Customerpassid, visit.Customerpassid);
+        Assert.Equal(new DateTime(2020, 1, 1), visit.Checkindatetime);
+        Assert.Equal(3, pass.Remainingvisits);
+    }
+
+    [Fact]
+    public async Task Repository_rolls_back_saved_changes_when_operation_fails()
+    {
+        var pass = database.AddPass();
+        var repository = new CheckinRepository(database.Db);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => repository.InTransactionAsync<int>(async () =>
+        {
+            pass.Remainingvisits--;
+            repository.Add(new Checkin { Customerpassid = pass.Customerpassid, Checkindatetime = ReceptionTime.Now });
+            await repository.SaveChangesAsync(TestContext.Current.CancellationToken);
+            throw new InvalidOperationException("Simulated failure before commit.");
+        }, TestContext.Current.CancellationToken));
+        database.Db.ChangeTracker.Clear();
+        Assert.Equal(3, database.Db.Customerpasses.Single().Remainingvisits);
+        Assert.Empty(database.Db.Checkins);
     }
 
     public void Dispose() => database.Dispose();

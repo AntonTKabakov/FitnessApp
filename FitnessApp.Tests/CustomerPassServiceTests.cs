@@ -1,3 +1,4 @@
+using FitnessApp.Repositories;
 using FitnessApp.Models;
 using FitnessApp.Service;
 using FitnessApp.ViewModels;
@@ -16,7 +17,7 @@ public sealed class CustomerPassServiceTests : IDisposable
         var type = new Gympass { Passname = "Monthly", Price = 25m, Maxvisits = 12, Validitydays = 30 };
         database.Db.AddRange(customer, type);
         await database.Db.SaveChangesAsync(TestContext.Current.CancellationToken);
-        var service = new CustomerPassService(database.Db);
+        var service = new CustomerPassService(new CustomerPassRepository(database.Db));
         var before = ReceptionTime.Today;
 
         var id = await service.PurchaseAsync(customer.Id, type.Passtypeid, TestContext.Current.CancellationToken);
@@ -38,7 +39,7 @@ public sealed class CustomerPassServiceTests : IDisposable
         var type = new Gympass { Passname = "Monthly", Price = 25m, Maxvisits = 12, Validitydays = 30 };
         database.Db.Gympasses.Add(type);
         await database.Db.SaveChangesAsync(TestContext.Current.CancellationToken);
-        var service = new CustomerPassService(database.Db);
+        var service = new CustomerPassService(new CustomerPassRepository(database.Db));
 
         var id = await service.PurchaseAsync(123, type.Passtypeid, TestContext.Current.CancellationToken);
 
@@ -52,7 +53,7 @@ public sealed class CustomerPassServiceTests : IDisposable
         var customer = new User { Email = "buyer@example.test", Password = "stored-hash" };
         database.Db.Users.Add(customer);
         await database.Db.SaveChangesAsync(TestContext.Current.CancellationToken);
-        var service = new CustomerPassService(database.Db);
+        var service = new CustomerPassService(new CustomerPassRepository(database.Db));
 
         var id = await service.PurchaseAsync(customer.Id, 123, TestContext.Current.CancellationToken);
 
@@ -73,7 +74,7 @@ public sealed class CustomerPassServiceTests : IDisposable
         var type = new Gympass { Passname = "Invalid", Price = price, Maxvisits = visits, Validitydays = days };
         database.Db.AddRange(customer, type);
         await database.Db.SaveChangesAsync(TestContext.Current.CancellationToken);
-        var service = new CustomerPassService(database.Db);
+        var service = new CustomerPassService(new CustomerPassRepository(database.Db));
 
         var id = await service.PurchaseAsync(customer.Id, type.Passtypeid, TestContext.Current.CancellationToken);
 

@@ -3,8 +3,12 @@ using FitnessApp.ViewModels;
 
 namespace FitnessApp.Service;
 
-public class ExcelReportService
+public class ExcelReportService : FitnessApp.Service.Interfaces.IReportExportStrategy
 {
+    public string Format => "excel";
+    public string ContentType => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    public string Extension => "xlsx";
+    public bool IsAvailable => true;
     private const string MoneyFormat = "#,##0.00\" EUR\"";
     private const string DateFormat = "dd mmm yyyy";
 

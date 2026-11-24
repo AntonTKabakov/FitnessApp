@@ -1,52 +1,47 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <BuildTailwind Condition="'$(BuildTailwind)' == ''">true</BuildTailwind>
-    <TailwindPowerShell Condition="'$(TailwindPowerShell)' == '' and '$(OS)' == 'Windows_NT'">powershell</TailwindPowerShell>
-    <TailwindPowerShell Condition="'$(TailwindPowerShell)' == ''">pwsh</TailwindPowerShell>
-    <UserSecretsId>e52fb125-ca7b-453f-b7cd-71cb5fcf5554</UserSecretsId>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<UserSecretsId>e52fb125-ca7b-453f-b7cd-71cb5fcf5554</UserSecretsId>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="ClosedXML" Version="0.105.1" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.13" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.13">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.13">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
-    <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.23.0" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
-    <PackageReference Include="QuestPDF" Version="2026.9.1" />
-    <PackageReference Include="SkiaSharp" Version="4.153.2" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.153.2" />
-    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.23.0" />
-  </ItemGroup>
+	<ItemGroup>
+		<!-- Authentication -->
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.13" />
+		<PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.23.0" />
+		<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.23.0" />
 
-  <ItemGroup>
-    <!-- Uploaded private images belong to persistent runtime storage, never publish output. -->
-    <Content Remove="uploads/**" />
-    <None Remove="uploads/**" />
-    <Content Remove="logs/**" />
-    <None Remove="logs/**" />
-  </ItemGroup>
+		<!-- Entity Framework Core -->
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.13">
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+			<PrivateAssets>all</PrivateAssets>
+		</PackageReference>
 
-  <ItemGroup>
-    <TailwindInput Include="Views/**/*.cshtml;wwwroot/js/**/*.js;Styles/**/*.css;../scripts/build-css.ps1;../scripts/tailwind-release.json;$(MSBuildProjectFullPath)" />
-  </ItemGroup>
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.13">
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+			<PrivateAssets>all</PrivateAssets>
+		</PackageReference>
 
-  <Target Name="BuildTailwindStyles" BeforeTargets="PrepareForBuild;ComputeFilesToPublish" Condition="'$(BuildTailwind)' == 'true' and '$(DesignTimeBuild)' != 'true'" Inputs="@(TailwindInput)" Outputs="$(MSBuildProjectDirectory)/wwwroot/css/tailwind.css">
-    <Exec Command="&quot;$(TailwindPowerShell)&quot; -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)/../scripts/build-css.ps1&quot;" />
-  </Target>
+		<!-- PostgreSQL -->
+		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
 
-  <Target Name="RequireTailwindStyles" BeforeTargets="PrepareForBuild;ComputeFilesToPublish" Condition="'$(BuildTailwind)' != 'true' and '$(DesignTimeBuild)' != 'true'">
-    <Error Condition="!Exists('$(MSBuildProjectDirectory)/wwwroot/css/tailwind.css')" Text="Compiled Tailwind CSS is missing. Run scripts/build-css.ps1 or enable BuildTailwind." />
-  </Target>
+		<!-- Reports -->
+		<PackageReference Include="ClosedXML" Version="0.105.1" />
+		<PackageReference Include="QuestPDF" Version="2026.9.1" />
+
+		<!-- Image processing -->
+		<PackageReference Include="SkiaSharp" Version="4.153.2" />
+		<PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.153.2" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Content Remove="uploads/**" />
+		<None Remove="uploads/**" />
+		<Content Remove="logs/**" />
+		<None Remove="logs/**" />
+	</ItemGroup>
+
 
 </Project>

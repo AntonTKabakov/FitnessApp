@@ -5,8 +5,11 @@ using QuestPDF.Infrastructure;
 
 namespace FitnessApp.Service;
 
-public class PdfReportService
+public class PdfReportService : FitnessApp.Service.Interfaces.IReportExportStrategy
 {
+    public string Format => "pdf";
+    public string ContentType => "application/pdf";
+    public string Extension => "pdf";
     public bool IsAvailable { get; }
 
     public PdfReportService(IConfiguration configuration)

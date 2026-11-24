@@ -1,9 +1,0 @@
-﻿@model VisitRowViewModel
-@{ ViewData["Title"] = "Remove check-in"; }
-<a class="text-link mb-5 inline-block text-sm" asp-action="Details" asp-route-id="@Model.Id">← Check-in details</a>
-<h1 class="page-heading">Remove this check-in?</h1><p class="page-description mb-7">Check the entry details before confirming.</p>
-<div class="panel max-w-3xl"><div class="panel-body">
-    <partial name="_VisitSummary" model="Model" />
-    <div class="notice notice-error mt-6">Removing this entry restores one visit to the customer’s pass. The check-in record will be deleted.</div>
-    <form asp-action="Delete" asp-route-id="@Model.Id" method="post" class="mt-6 flex flex-wrap gap-3"><button class="btn btn-danger" type="submit">Remove and restore visit</button><a class="btn btn-secondary" asp-action="Details" asp-route-id="@Model.Id">Keep check-in</a></form>
-</div></div>

@@ -1,0 +1,43 @@
+services:
+  database:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-fitnessapp}
+      POSTGRES_USER: ${POSTGRES_USER:-fitnessapp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      retries: 10
+  backend:
+    build: .
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: Host=database;Database=${POSTGRES_DB:-fitnessapp};Username=${POSTGRES_USER:-fitnessapp};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      Jwt__AccessSecret: ${JWT_ACCESS_SECRET:?Set JWT_ACCESS_SECRET}
+      Frontend__AllowedOrigins__0: ${FRONTEND_ORIGIN:-http://localhost:5173}
+      AuthCookie__Secure: "false"
+      FileStorage__ProfilePicturesPath: /app/private/pictures
+    ports:
+      - "5290:8080"
+    volumes:
+      - pictures:/app/private/pictures
+    depends_on:
+      database:
+        condition: service_healthy
+  frontend:
+    build:
+      context: FitnessApp.Frontend
+      args:
+        VITE_API_URL: ${PUBLIC_API_URL:-}
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+volumes:
+  postgres-data:
+  pictures:

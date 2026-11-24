@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FitnessApp.Service;
 
-public class StatsService(AppDbContext db, PdfReportService pdf) : IStatsService
+public class StatsService(AppDbContext db, ReportExportService exports) : IStatsService
 {
     public async Task<StatsReportViewModel> GetReportAsync(StatsPeriod period, CancellationToken cancellationToken = default)
     {
@@ -60,7 +60,7 @@ public class StatsService(AppDbContext db, PdfReportService pdf) : IStatsService
 
         return new StatsReportViewModel
         {
-            Period = period, GeneratedAt = now, PdfAvailable = pdf.IsAvailable,
+            Period = period, GeneratedAt = now, PdfAvailable = exports.IsAvailable("pdf"),
             TotalCustomers = totalCustomers, ActiveMemberships = activeMemberships,
             AllTimeEstimatedRevenue = allTimeRevenue, TotalCheckins = totalCheckins, TotalTrainers = totalTrainers,
             PeriodCheckins = periodCheckins, PeriodPurchasingCustomers = purchasingCustomers,
